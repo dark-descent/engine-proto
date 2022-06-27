@@ -15,8 +15,6 @@
 			"ES2021",
 			"ES2022"
 		],
-		"baseUrl": "./src",
-		"paths": {},
 		"typeRoots": [ "./node_modules/@webgpu/types", "./node_modules/@types"],
 		"experimentalDecorators": true,
 		"emitDecoratorMetadata": true,
