@@ -1,4 +1,5 @@
 import { AssetManager } from "./AssetManager";
+import { ECS } from "./ECS";
 import { Game } from "./Game";
 import { Renderer } from "./Renderer";
 import { SceneManager } from "./SceneManager";
@@ -26,6 +27,7 @@ export class Engine
 			AssetManager,
 			SceneManager,
 			Renderer,
+			ECS,
 			...subSystemOverrides
 		});
 
@@ -81,11 +83,34 @@ export class Engine
 			const deps = ctor.getDependencies(type);
 			const promises: Promise<any>[] = [];
 			if (deps)
-				for (const dep of deps)
+				for (let dep of deps)
 				{
-					const s = this.getSubSystem(dep);
-					if (s && !s.isInitialized && !s._isInitializing)
-						promises.push(this.initSubSystem(s, dep, config));
+					if (Array.isArray(dep))
+					{
+						const foundDep = dep.find(d => 
+						{
+							let keys = this._subSystemsTypeMap.keys();
+							let res = keys.next();
+
+							while (!res.done)
+							{
+								if (res.value === d)
+									return true;
+								res = keys.next();
+							}
+
+							return false;
+						});
+
+						dep = foundDep as any;
+					}
+
+					if(dep)
+					{
+						const s = this.getSubSystem(dep as any);
+						if (s && !s.isInitialized && !s.isInitializing)
+							promises.push(this.initSubSystem(s, dep as any, config));
+					}
 				}
 
 			await Promise.all(promises);
@@ -107,6 +132,7 @@ type SubSystems = {
 	SceneManager: SceneManager;
 	AssetManager: AssetManager;
 	Renderer: Renderer;
+	ECS: ECS;
 };
 
 export type SubSystemOverrides = {

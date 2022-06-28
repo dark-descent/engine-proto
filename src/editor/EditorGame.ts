@@ -18,6 +18,9 @@ export class EditorGame extends Game
 			},
 			Renderer: {
 
+			},
+			ECS: {
+				
 			}
 		}
 	}

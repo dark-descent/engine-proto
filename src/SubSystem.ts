@@ -2,7 +2,7 @@ import { Engine } from "./Engine";
 
 export abstract class SubSystem<P extends {}>
 {
-	public static readonly dependsOn = (...deps: SubSystemType<any>[]) =>
+	public static readonly dependsOn = (...deps: (SubSystemType<any> | SubSystemType<any>[])[]) =>
 	{
 		return (_ctor: Function) => 
 		{
@@ -11,7 +11,7 @@ export abstract class SubSystem<P extends {}>
 		}
 	}
 
-	private static readonly _dependencies: Map<SubSystemType<any>, SubSystemType<any>[]> = new Map();
+	private static readonly _dependencies: Map<SubSystemType<any>, (SubSystemType<any> | SubSystemType<any>[])[]> = new Map();
 
 	public static readonly getDependencies = (type: SubSystemType<any>) => this._dependencies.get(type);
 	

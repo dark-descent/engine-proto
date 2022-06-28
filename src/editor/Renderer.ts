@@ -1,3 +1,6 @@
+import { ECS } from "../ECS";
+import { RendererComponent } from "../RendererComponent";
+import { RenderSystem } from "../RenderSystem";
 import { SubSystem } from "../SubSystem";
 
 export class Renderer extends SubSystem<RendererProps>
@@ -13,6 +16,11 @@ export class Renderer extends SubSystem<RendererProps>
 
 	public init(props: RendererProps)
 	{
+		const ecs = this.engine.getSubSystem(ECS);
+		// ecs.registerComponent(RendererComponent);
+		ecs.registerSystem(RenderSystem);
+		
+
 		if (props.canvas)
 			this.updateCanvas(props.canvas);
 	}
