@@ -1,32 +1,35 @@
 import { AssetManager } from "./AssetManager";
-import { Guards } from "./Guards";
+import { Game } from "./Game";
+import { Renderer } from "./Renderer";
 import { SceneManager } from "./SceneManager";
 import { SubSystem, SubSystemInitProps, SubSystemType } from "./SubSystem";
 
 export class Engine
 {
-	private static _isInitialized: boolean = false;
-
-	private static readonly _instance: Engine = new Engine();
-
-	public static readonly initialize = (config: Config) =>
+	public static readonly initialize = async (game: Game, config: Config, subSystemOverrides: Partial<SubSystemOverrides> = {}) =>
 	{
-		if (this._isInitialized)
-			throw new Error("Engine is already initialized!");
-		this._instance.initialize(config);
+		const engine = new Engine(game, subSystemOverrides);
+		await engine.initialize(config);
+		return engine;
 	}
 
 	private readonly _subSystemsTypeMap: Map<SubSystemType<any>, SubSystem<any>> = new Map();
 	private readonly _subSystemsNameMap: Map<string, SubSystem<any>> = new Map();
 
-	private constructor() 
-	{
-		const subSystems: DefaultSubSystems = [
-			AssetManager,
-			SceneManager
-		];
+	public readonly game: Game;
 
-		subSystems.forEach(s => this.loadSystem(s));
+	private constructor(game: Game, subSystemOverrides: Partial<SubSystemOverrides> = {}) 
+	{
+		this.game = game;
+
+		const subSystems = Object.values({
+			AssetManager,
+			SceneManager,
+			Renderer,
+			...subSystemOverrides
+		});
+
+		subSystems.forEach(s => this.loadSystem(s as SubSystemType<any>));
 	}
 
 	public readonly loadSystem = <T extends SubSystem<any>>(type: SubSystemType<T>, name: string = type.name): T =>
@@ -76,7 +79,7 @@ export class Engine
 			if (!config[key])
 				throw new Error(``);
 			const deps = ctor.getDependencies(type);
-			let promises: Promise<any>[] = [];
+			const promises: Promise<any>[] = [];
 			if (deps)
 				for (const dep of deps)
 				{
@@ -84,7 +87,7 @@ export class Engine
 					if (s && !s.isInitialized && !s._isInitializing)
 						promises.push(this.initSubSystem(s, dep, config));
 				}
-			
+
 			await Promise.all(promises);
 			await system["initialize"](config[key]);
 		}
@@ -93,22 +96,33 @@ export class Engine
 	private readonly initialize = async (config: Config) =>
 	{
 		const systems = this._subSystemsTypeMap.keys();
-		for(const type of systems)
-			await this.initSubSystem(this.getSubSystem(type), type, config);
+		const promises: Promise<any>[] = [];
+		for (const type of systems)
+			promises.push(this.initSubSystem(this.getSubSystem(type), type, config));
+		await Promise.all(promises);
 	}
 }
 
 type SubSystems = {
 	SceneManager: SceneManager;
 	AssetManager: AssetManager;
+	Renderer: Renderer;
 };
 
-type DefaultSubSystemTypes = {
-	[K in keyof SubSystems]: SubSystemType<SubSystems[K]>
+export type SubSystemOverrides = {
+	[K in keyof SubSystems]: SubSystemType<SubSystem<any>>;
 };
-
-type DefaultSubSystems = DefaultSubSystemTypes[keyof DefaultSubSystemTypes][];
 
 type Config = {
 	[K in keyof SubSystems]: SubSystemInitProps<SubSystems[K]>;
 };
+
+type SubSystemOverride = {
+	[key: string]: SubSystem<any>;
+};
+
+type SubSystemConfig<T extends SubSystemOverride> = {
+	[K in keyof T]: SubSystemInitProps<T[K]>;
+}
+
+export type SubSystemsConfig<T extends SubSystemOverride> = Config & SubSystemConfig<T>;

@@ -1,5 +1,5 @@
 import { AssetManager } from "./AssetManager";
-import { SubSystem, SubSystemInitProps } from "./SubSystem";
+import { SubSystem } from "./SubSystem";
 
 @SubSystem.dependsOn(AssetManager)
 export class SceneManager extends SubSystem<SceneProps>
@@ -13,5 +13,3 @@ export class SceneManager extends SubSystem<SceneProps>
 export type SceneProps = {
 	test: string;
 };
-
-type A = SubSystemInitProps<SceneManager>;
