@@ -69,7 +69,7 @@ const runNodeGyp = () =>
 		"targets": [
 			{
 				"target_name": "addon",
-				"win_delay_load_hook": "true",
+				"win_delay_load_hook": os.platform() === "win32" ? "true" : "false",
 				"sources": readRecursive(addonSrc)
 			}
 		]
