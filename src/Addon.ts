@@ -1,4 +1,14 @@
+import type { EngineConfig } from "./Engine";
+
 export namespace Addon
 {
-	export const module = __non_webpack_require__("./addon.node");
+	export const module: AddonModule = __non_webpack_require__("./addon.node");
 }
+
+type AddonModule = {
+	initialize: (config: EngineConfig) => InternalEngine;
+};
+
+export type InternalEngine = {
+
+};
