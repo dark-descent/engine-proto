@@ -1,3 +1,4 @@
+import { Addon } from "./Addon";
 import { AssetManager } from "./AssetManager";
 import { ECS } from "./ECS";
 import { Game } from "./Game";
@@ -9,6 +10,7 @@ export class Engine
 {
 	public static readonly initialize = async (game: Game, config: Config, subSystemOverrides: Partial<SubSystemOverrides> = {}) =>
 	{
+		console.log(Addon.module);
 		const engine = new Engine(game, subSystemOverrides);
 		await engine.initialize(config);
 		return engine;

@@ -8,8 +8,6 @@ const src = resolve("src");
 module.exports = {
 	root,
 	src,
-	dist: resolve("dist"),
-	editorEntry: resolve(src, "editor", "index.ts"),
-	engineEntry: resolve(src, "index.ts"),
+	addonSrc: resolve(src, "addon"),
 	resolve,
 }
