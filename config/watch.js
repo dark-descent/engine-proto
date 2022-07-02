@@ -1,5 +1,5 @@
-const { watch, readdirSync, writeFileSync, copyFileSync } = require("fs");
-const { resolve, addonSrc, src } = require("./paths");
+const { watch, readdirSync, writeFileSync } = require("fs");
+const { resolve, addonSrc } = require("./paths");
 const p = require("path");
 const { spawn, spawnSync } = require("child_process");
 const os = require("os");
@@ -65,12 +65,16 @@ const runNodeGyp = () =>
 	if (nodeGypProc)
 		nodeGypProc.kill();
 
+	const files = readRecursive(addonSrc);
 	const json = JSON.stringify({
 		"targets": [
 			{
 				"target_name": "addon",
 				"win_delay_load_hook": os.platform() === "win32" ? "true" : "false",
-				"sources": readRecursive(addonSrc)
+				"sources": files.filter(f => f.endsWith("cpp")),
+				"include_dirs": [
+					resolve("src", "addon", "include"),
+				],
 			}
 		]
 	}, null, 4);
@@ -78,10 +82,6 @@ const runNodeGyp = () =>
 	writeFileSync(resolve("binding.gyp"), json, "utf-8");
 
 	nodeGypProc = spawn(nodeGyp, ["rebuild", ...nodeGypArgs], { stdio: "inherit" });
-	nodeGypProc.on("close", () =>
-	{
-		nodeGypProc = null;
-	});
 }
 
 console.log(`Configuring...`);
