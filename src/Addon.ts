@@ -6,7 +6,7 @@ export namespace Addon
 }
 
 type AddonModule = {
-	initialize: (config: EngineConfig) => InternalEngine;
+	initialize: (config: Required<EngineConfig>) => InternalEngine;
 };
 
 export type InternalEngine = {
