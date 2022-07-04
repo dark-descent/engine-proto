@@ -15,13 +15,6 @@ Engine::Engine(v8::Isolate* isolate, const v8::Local<v8::Function>& logCallback)
 	{
 		loadSystem(&renderer);
 		registerComponent<Transform>();
-		for (size_t i = 0, l = config.entityBlockSize * 10; i < l; i++)
-		{
-			auto entityHandle = addEntity();
-			auto entity = getEntity(entityHandle);
-			if (*entity->handle% config.entityBlockSize == 0)
-				printf("id: %zu\r\n", *entity->handle);
-		}
 	}
 	catch (const char* msg)
 	{
@@ -51,9 +44,15 @@ EntityHandle* Engine::addEntity()
 
 inline Entity* Engine::getEntity(EntityHandle* handle)
 {
-	return entities_.at(*handle);
+	return entities_.at(handle->entityIndex);
 }
 
+void Engine::destroyEntity(EntityHandle* handle)
+{
+	Entity* entity = getEntity(handle);
+	entities_.free(handle->entityIndex, [&](size_t oldIndex, size_t newIndex, Entity* entity) { entity->handle->entityIndex = newIndex; });
+	entityHandles_->free(handle);
+}
 
 void Engine::log(LogLevel level, const char* msg)
 {

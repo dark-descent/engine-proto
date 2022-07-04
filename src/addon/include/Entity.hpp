@@ -1,8 +1,14 @@
 #pragma once
 
+#include "allocators/EntityHandleAllocatorIndex.hpp"
+
 struct Component;
 
-using EntityHandle = size_t;
+struct EntityHandle
+{
+	size_t entityIndex;
+	EntityHandleAllocatorIndex handleIndex;
+};
 
 struct Entity
 {

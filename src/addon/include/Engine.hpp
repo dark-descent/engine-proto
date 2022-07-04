@@ -49,8 +49,11 @@ private:
 	~Engine();
 
 	inline size_t getNextComponentFlag();
-	inline Entity* getEntity(EntityHandle* handle);
+	
 	EntityHandle* addEntity();
+	inline Entity* getEntity(EntityHandle* handle);
+	void destroyEntity(EntityHandle* handle);
+
 	void log(LogLevel level, const char* msg);
 
 	template<typename T>
