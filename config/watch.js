@@ -1,4 +1,4 @@
-const { watch, readdirSync, writeFileSync, readFile, readFileSync, existsSync } = require("fs");
+const { watch, readdirSync, writeFileSync, readFile, readFileSync, existsSync, statSync } = require("fs");
 const { resolve, addonSrc } = require("./paths");
 const p = require("path");
 const { spawn } = require("child_process");
@@ -130,11 +130,16 @@ const init = async () =>
 
 	watch(addonSrc, { recursive: true }, (e, file) => 
 	{
+		const path = p.resolve(addonSrc, file);
+		
+		if(statSync(path).isDirectory())
+			return;
+
 		if (onChangeTimeout)
 			clearTimeout(onChangeTimeout);
 		onChangeTimeout = setTimeout(() => 
 		{
-			const path = p.resolve(addonSrc, file);
+
 			const hash = getFileHash(path);
 			const oldHash = fileHashes[path];
 			if (!oldHash || (oldHash !== hash))
