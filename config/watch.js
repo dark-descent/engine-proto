@@ -1,10 +1,9 @@
-const { watch, readdirSync, writeFileSync } = require("fs");
+const { watch, readdirSync, writeFileSync, readFile, readFileSync, existsSync } = require("fs");
 const { resolve, addonSrc } = require("./paths");
 const p = require("path");
-const { spawn, spawnSync } = require("child_process");
+const { spawn } = require("child_process");
 const os = require("os");
-
-const { existsSync } = require("fs");
+const crypto = require("crypto");
 
 const isNum = (val) => val.length > 0 && !Number.isNaN(Number(val));
 
@@ -103,9 +102,48 @@ const runNodeGyp = () =>
 	nodeGypProc = spawn(nodeGyp, ["rebuild", ...nodeGypArgs], { stdio: "inherit" });
 }
 
-console.log(`Configuring...`);
-spawnSync(nodeGyp, ["configure", ...nodeGypArgs], { stdio: "inherit" });
-
 runNodeGyp();
 
-watch(addonSrc, { recursive: true }, runNodeGyp);
+
+const getFileHashAsync = (path) => new Promise((res) => 
+{
+	readFile(path, "utf-8", (err, data) => 
+	{
+		res(crypto.createHash("md5").update(data).digest("base64"));
+	});
+});
+
+const getFileHash = (path) => crypto.createHash("md5").update(readFileSync(path, "utf-8")).digest("base64");
+
+const init = async () =>
+{
+	const srcPath = resolve("src", "addon", "src");
+	const includePath = resolve("src", "addon", "include");
+	const files = readRecursive(addonSrc).filter(file => file.startsWith(srcPath) || file.startsWith(includePath));
+	filePromises = files.map(file => getFileHashAsync(file));
+	const hashes = await Promise.all(filePromises);
+
+	const fileHashes = {};
+	hashes.forEach((hash, i) => fileHashes[files[i]] = hash);
+
+	let onChangeTimeout = null;
+
+	watch(addonSrc, { recursive: true }, (e, file) => 
+	{
+		if (onChangeTimeout)
+			clearTimeout(onChangeTimeout);
+		onChangeTimeout = setTimeout(() => 
+		{
+			const path = p.resolve(addonSrc, file);
+			const hash = getFileHash(path);
+			const oldHash = fileHashes[path];
+			if (!oldHash || (oldHash !== hash))
+			{
+				runNodeGyp();
+				fileHashes[path] = hash;
+			}
+		}, 150);
+	});
+}
+
+init();
