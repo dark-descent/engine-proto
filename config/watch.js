@@ -130,24 +130,31 @@ const init = async () =>
 
 	watch(addonSrc, { recursive: true }, (e, file) => 
 	{
-		const path = p.resolve(addonSrc, file);
-		
-		if(statSync(path).isDirectory())
-			return;
-
-		if (onChangeTimeout)
-			clearTimeout(onChangeTimeout);
-		onChangeTimeout = setTimeout(() => 
+		try
 		{
+			const path = p.resolve(addonSrc, file);
 
-			const hash = getFileHash(path);
-			const oldHash = fileHashes[path];
-			if (!oldHash || (oldHash !== hash))
+			if (statSync(path).isDirectory())
+				return;
+
+			if (onChangeTimeout)
+				clearTimeout(onChangeTimeout);
+			onChangeTimeout = setTimeout(() => 
 			{
-				runNodeGyp();
-				fileHashes[path] = hash;
-			}
-		}, 150);
+
+				const hash = getFileHash(path);
+				const oldHash = fileHashes[path];
+				if (!oldHash || (oldHash !== hash))
+				{
+					runNodeGyp();
+					fileHashes[path] = hash;
+				}
+			}, 150);
+		}
+		catch (e)
+		{
+			console.warn(e);
+		}
 	});
 }
 
