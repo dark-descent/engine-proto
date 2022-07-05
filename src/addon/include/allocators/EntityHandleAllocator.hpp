@@ -104,14 +104,13 @@ public:
 			EntityHandle* buffer = buffers_.data()[i];
 			for (size_t j = 0; j < bufferSize_; j++)
 			{
-				indexCounter++;
 				if (indexCounter >= maxI)
 					goto exitLoop;
 				EntityHandle* entity = &buffer[j];
 				if (entity->handleIndex.index > -1 && entity->handleIndex.buffer > -1)
-				{
 					callback(entity, indexCounter);
-				}
+				
+				indexCounter++;
 			}
 		}
 

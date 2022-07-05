@@ -1,6 +1,7 @@
 #pragma once
 
 #include "allocators/EntityHandleAllocatorIndex.hpp"
+#include "ComponentFamily.hpp"
 
 struct Component;
 
@@ -13,5 +14,7 @@ struct EntityHandle
 struct Entity
 {
 	Component* firstComponent = nullptr;
-	EntityHandle* handle;
+	Component* lastComponent = nullptr;
+	ComponentFamily family = 0;
+	EntityHandle* handle = nullptr;
 };

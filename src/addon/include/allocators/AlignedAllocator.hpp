@@ -1,9 +1,10 @@
 #pragma once
 
-#include <array>
 #include <vector>
+#include <stdlib.h>
 
-template<typename T>
+typedef void(*RellocateCalback)(size_t, void*, void*);
+
 class AlignedAllocator
 {
 private:
@@ -13,13 +14,23 @@ private:
 		size_t index;
 	};
 
-	std::vector<T*> buffers_;
+	std::vector<void*> buffers_;
 	Index insertIndex_ = { 0, 0 };
+	size_t itemSize_;
 	size_t bufferSize_;
 
-	inline T* allocBuffer()
+	RellocateCalback rellocateCalback_;
+	void* callbackData_;
+
+	inline void* allocBuffer()
 	{
-		return static_cast<T*>(malloc(sizeof(T) * bufferSize_));
+
+#ifdef _MSC_VER
+		return _aligned_malloc(itemSize_ * bufferSize_, 16);
+#else
+		void* ptr = nullptr;
+		return posix_memalign(&ptr, 16, itemSize_ * bufferSize_);
+#endif
 	}
 
 	inline Index calcIndexStruct(size_t index)
@@ -38,9 +49,7 @@ private:
 	}
 
 public:
-	AlignedAllocator() : AlignedAllocator(1024) { }
-
-	AlignedAllocator(size_t bufferSize) : buffers_(), bufferSize_(bufferSize), insertIndex_({ 0, 0 })
+	AlignedAllocator(size_t itemSize, size_t bufferSize, RellocateCalback callback, void* callbackData) : itemSize_(itemSize), buffers_(), bufferSize_(bufferSize), insertIndex_({ 0, 0 }), rellocateCalback_(callback), callbackData_(callbackData)
 	{
 		printf("AlignedAllocater initialized with buffersize: %zu\r\n", bufferSize);
 		buffers_.push_back(allocBuffer());
@@ -68,65 +77,51 @@ public:
 
 	void free(size_t index)
 	{
-		const size_t lastIndex = calcIndex(insertIndex_.buffer, insertIndex_.index) - 1;
+		const Index idx = calcIndexStruct(index);
+		// printf("free at index %zu [%zu, %zu]\r\n", index, idx.buffer, idx.index);
 
-		if (index > lastIndex)
+		const int32_t bi = idx.buffer;
+		const int32_t i = idx.index;
+
+		int32_t lbi = insertIndex_.buffer;
+		int32_t li = insertIndex_.index - 1;
+
+		if (li < 0)
 		{
-			printf("Cannot free at index %zu!", index);
-			return;
+			lbi--;
+			li = bufferSize_ - 1;
 		}
 
-		T* oldPtr = at(insertIndex_.buffer, insertIndex_.index);
+		size_t bufferPtr = reinterpret_cast<size_t>(buffers_[bi]) + (i * itemSize_);
+		void* freedPtr = reinterpret_cast<void*>(bufferPtr);
+		size_t lastBufferPtr = reinterpret_cast<size_t>(buffers_[lbi]) + (li * itemSize_);
+		void* lastPtr = reinterpret_cast<void*>(lastBufferPtr);
 
-		if (index != lastIndex)
+		if (freedPtr != lastPtr)
 		{
-			T* newPtr = at(index);
-			*newPtr = *oldPtr;
+			memcpy(freedPtr, lastPtr, itemSize_);
+
+			if (rellocateCalback_ != nullptr)
+				rellocateCalback_(index, freedPtr, callbackData_);
 		}
 
-		insertIndex_ = calcIndexStruct(lastIndex);
-		memset(oldPtr, 0, sizeof(T));
+		insertIndex_.buffer = lbi;
+		insertIndex_.index = li;
 	}
 
-	template<typename Callback>
-	void free(size_t index, Callback onMove)
+	inline void* at(size_t bufferIndex, size_t index)
 	{
-		const size_t lastIndex = calcIndex(insertIndex_.buffer, insertIndex_.index) - 1;
-
-		if (index < 0 && index > lastIndex)
-		{
-			printf("Cannot free at index %zu!", index);
-			return;
-		}
-
-		T* oldPtr = at(lastIndex);
-
-		if (index != lastIndex)
-		{
-			T* newPtr = at(index);
-			*newPtr = *oldPtr;
-			onMove(lastIndex, index, newPtr);
-		}
-
-		insertIndex_ = calcIndexStruct(lastIndex);
-		memset(oldPtr, 0, sizeof(T));
+		return reinterpret_cast<void*>(reinterpret_cast<size_t>(buffers_[bufferIndex]) + (index * itemSize_));
 	}
 
-	inline T* at(size_t bufferIndex, size_t index)
+	inline void* at(Index index)
 	{
-		T* buffer = buffers_.data()[bufferIndex];
-		return &buffer[index];
+		return at(index.buffer, index.index);
 	}
 
-	inline T* at(Index index)
+	inline void* at(size_t index)
 	{
-		T* buffer = buffers_.data()[index.buffer];
-		return &buffer[index.index];
-	}
-
-	inline T* at(size_t index)
-	{
-		return at(calcIndexStruct(index));
+		return at(index / bufferSize_, index % bufferSize_);
 	}
 
 	template<typename Callback>
@@ -134,10 +129,10 @@ public:
 	{
 		size_t l = buffers_.size();
 		size_t indexCounter = 0;
-		T* buffer;
+		void* buffer;
 		for (size_t i = 0; i < l; i++)
 		{
-			buffer = buffers_.data()[i];
+			buffer = buffers_[i];
 			for (size_t j = 0; j < bufferSize_; j++)
 			{
 				callback(&buffer[j], indexCounter++);

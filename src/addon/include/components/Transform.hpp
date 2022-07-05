@@ -5,7 +5,7 @@
 
 PACK(struct Transform : public Component
 {
-	Vector2 position;
-	Vector2 rotation;
-	Vector2 scale;
+	Vector2 position = Vector2(0, 0);
+	Vector2 rotation = Vector2(0, 0);
+	Vector2 scale = Vector2(0, 0);
 });
