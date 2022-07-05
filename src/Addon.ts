@@ -1,4 +1,5 @@
 import type { EngineConfig } from "./Engine";
+import { IRenderer } from "./System";
 
 export namespace Addon
 {
@@ -6,9 +7,9 @@ export namespace Addon
 }
 
 type AddonModule = {
-	initialize: (config: Required<EngineConfig>) => InternalEngine;
+	initialize: (config: Required<EngineConfig>) => EngineSystems;
 };
 
-export type InternalEngine = {
-
+export type EngineSystems = {
+	Renderer: IRenderer;
 };

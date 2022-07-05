@@ -1,7 +1,7 @@
 #pragma once
 
 #include "framework.hpp"
-#include "System.hpp"
+#include "System.hpp" 
 #include "Component.hpp"
 #include "Entity.hpp"
 #include "gfx/Renderer.hpp"
@@ -35,9 +35,11 @@ public:
 	static void destory(const v8::FunctionCallbackInfo<v8::Value>& info);
 	static void cleanup(void* data);
 
+
+	v8::Isolate* isolate;
 private:
-	v8::Isolate* isolate_;
 	std::unordered_map<Hash, System*> systems_;
+	std::unordered_map<Hash, const char*> systemsNames_;
 	std::stack<Hash> systemsStack_;
 	std::unordered_map<Hash, AlignedAllocator*> components_;
 	size_t componentFlagCounter_ = 1;
@@ -47,10 +49,12 @@ private:
 	Config config;
 	gfx::Renderer renderer;
 
-	v8::Persistent<v8::Function> logCallback_;
+	v8::Persistent<v8::Function, v8::CopyablePersistentTraits<v8::Function>> logCallback_;
 
 	Engine(v8::Isolate* isolate, const v8::Local<v8::Function>& logCallback);
 	~Engine();
+
+	void exposeInternals(ObjectBuilder& builder);
 
 	inline size_t getNextComponentFlag();
 
@@ -112,11 +116,12 @@ private:
 	}
 
 	template<typename T>
-	bool loadSystem(T* system)
+	bool registerSystem(const char* systemExposeName, T* system)
 	{
 		const Hash hash = System::getTypeHash<T>();
 		system->initialize(config);
 		systems_.insert(std::make_pair(hash, system));
+		systemsNames_.insert(std::make_pair(hash, systemExposeName));
 		systemsStack_.push(hash);
 		return true;
 	}

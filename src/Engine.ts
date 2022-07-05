@@ -1,4 +1,4 @@
-import { Addon, InternalEngine } from "./Addon";
+import { Addon, EngineSystems } from "./Addon";
 
 export class Engine
 {
@@ -35,12 +35,13 @@ export class Engine
 			throw new Error(`Engine is already initialized!`);
 	}
 
-	private readonly _internalEngine: Readonly<InternalEngine>;
 	private readonly _config: Readonly<EngineConfig>;
 
-	private constructor(internalEngine: InternalEngine, config: Required<EngineConfig>)
+	public readonly systems: Readonly<EngineSystems>;
+
+	private constructor(systems: EngineSystems, config: Required<EngineConfig>)
 	{
-		this._internalEngine = internalEngine;
+		this.systems = systems;
 		this._config = config;
 	}
 }

@@ -31,6 +31,28 @@ inline v8::Local<v8::Value> createPointer(v8::Isolate* isolate, T pointer)
 	return createNumber<uint64_t>(isolate, ptr);
 }
 
+inline v8::Local<v8::Function> createFunction(v8::Isolate* isolate, v8::FunctionCallback callback)
+{
+	return v8::FunctionTemplate::New(isolate, callback)->GetFunction(isolate->GetCurrentContext()).ToLocalChecked();
+}
+
+inline v8::Local<v8::Function> createFunction(v8::Isolate* isolate, v8::FunctionCallback callback, void* pointer)
+{
+	v8::Local<v8::External> ptr = v8::External::New(isolate, pointer);
+	return v8::FunctionTemplate::New(isolate, callback, ptr)->GetFunction(isolate->GetCurrentContext()).ToLocalChecked();
+}
+
+template<typename T>
+inline v8::Local<v8::Function> createFunction(v8::Isolate* isolate, v8::FunctionCallback callback, T* pointer)
+{
+	return createFunction(isolate, callback, static_cast<void*>(pointer));
+}
+
+inline v8::Local<v8::SharedArrayBuffer> createSharedArrayBuffer(v8::Isolate* isolate, std::unique_ptr<v8::BackingStore> backingStore)
+{
+	return v8::SharedArrayBuffer::New(isolate, std::move(backingStore));
+}
+
 struct ObjectBuilder;
 
 template<typename ConstructCallback>
@@ -60,6 +82,11 @@ public:
 
 	template<typename T>
 	void set(const char* key, T number) { this->obj_->Set(this->ctx_, createString(this->isolate_, key), createNumber(this->isolate_, number)); }
+
+	void setFunction(const char* key, v8::FunctionCallback callback) { this->obj_->Set(this->ctx_, createString(this->isolate_, key), createFunction(this->isolate_, callback)); }
+
+	template<typename T>
+	void setFunction(const char* key, v8::FunctionCallback callback, T* data) { this->obj_->Set(this->ctx_, createString(this->isolate_, key), createFunction(this->isolate_, callback, data)); }
 
 	template<typename ConstructCallback>
 	void setObject(const char* key, ConstructCallback callback) { this->obj_->Set(this->ctx_, createString(this->isolate_, key), createObject(this->isolate_, callback)); }
