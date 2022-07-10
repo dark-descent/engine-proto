@@ -1,6 +1,8 @@
 #pragma once
 
 #include <node.h>
+
+#include <array>
 #include <map>
 #include <unordered_map>
 #include <vector>
@@ -12,6 +14,10 @@
 #include <memory>
 #include <string>
 #include <stdexcept>
+#include <algorithm>
+#include <stdexcept>
+#include <filesystem>
+#include <fstream>
 
 #include "v8_helpers.hpp"
 

@@ -1,165 +1,79 @@
 #pragma once
 
 #include "framework.hpp"
-#include "System.hpp" 
+#include "Hasher.hpp"
 #include "Component.hpp"
-#include "Entity.hpp"
-#include "gfx/Renderer.hpp"
-#include "allocators/AlignedAllocator.hpp"
-#include "allocators/EntityHandleAllocator.hpp"
-#include "Config.hpp"
-#include "ComponentFamily.hpp"
+#include "ArchType.hpp"
+#include "AssetManager.hpp"
+#include "SceneManager.hpp"
+#include "Game.hpp"
 
-enum LogLevel
-{
-	ERROR = 0,
-	EXCEPTION = 1,
-	WARN = 2,
-	INFO = 3,
-	SIZE
-};
 
 class Engine
 {
 private:
-	static const char* const logLevelStringMap_[LogLevel::SIZE];
-
 	static Engine* engine_;
-
-	static void onComponentRellocateCallback(size_t newIndex, void* data, void* engine);
-
-	static void onEntityRellocateCallback(size_t newIndex, void* data, void* engine);
+	static uint8_t componentBitMaskCounter_;
 
 public:
-	static void initialize(const v8::FunctionCallbackInfo<v8::Value>& info);
-	static void destory(const v8::FunctionCallbackInfo<v8::Value>& info);
-	static void cleanup(void* data);
+	static void initialize(V8CallbackArgs args);
 
-
-	v8::Isolate* isolate;
 private:
-	std::unordered_map<Hash, System*> systems_;
-	std::unordered_map<Hash, const char*> systemsNames_;
-	std::stack<Hash> systemsStack_;
-	std::unordered_map<Hash, AlignedAllocator*> components_;
-	size_t componentFlagCounter_ = 1;
-	std::unordered_map<Hash, int> componentTypes_;
-	AlignedAllocator entities_;
-	EntityHandleAllocator* entityHandles_;
-	Config config;
-	gfx::Renderer renderer;
+	static void destroy(void* data);
 
-	v8::Persistent<v8::Function, v8::CopyablePersistentTraits<v8::Function>> logCallback_;
+	bool isInitialized_ = false;
+	std::unordered_map<uint64_t, ArchType> archTypes_;
+	std::vector<Component> components_;
+	std::vector<SubSystem*> subSystems_;
 
-	Engine(v8::Isolate* isolate, const v8::Local<v8::Function>& logCallback);
+public:
+	AssetManager assetManager;
+	SceneManager sceneManager;
+	
+	Game game;
+
+private:
+#ifdef _DEBUG
+	std::vector<std::pair<Hash, std::string>> componentNames_;
+#endif
+
+	Engine(Config& config, ObjectBuilder& exports);
 	~Engine();
-
-	void exposeInternals(ObjectBuilder& builder);
-
-	inline size_t getNextComponentFlag();
-
-	EntityHandle* addEntity();
-	inline Entity* getEntity(EntityHandle* handle);
-	void destroyEntity(EntityHandle* handle);
-
-	void log(LogLevel level, const char* msg);
+	Engine(const Engine&) = delete;
+	Engine(Engine&&) = delete;
 
 	template<typename T>
-	T* addEntityComponent(Entity* entity)
+	uint64_t registerAndExposeComponent(ObjectBuilder& exports, const char* name)
 	{
-		if (entity != nullptr)
+		const uint64_t bitMask = componentBitMaskCounter_;
+		const size_t index = components_.size();
+		components_.push_back(Component(bitMask, sizeof(T)));
+		componentBitMaskCounter_ <<= 1;
+
+#ifdef _DEBUG
+		const Hash hash = Hasher::hash<T>();
+		const char* componentName = typeid(T).name();
+		
+		bool found = false;
+		for(const auto& item : componentNames_)
 		{
-			const Hash hash = System::getTypeHash<T>();
-
-			if (components_.contains(hash))
+			if(item.first == hash)
 			{
-				entity->family |= componentTypes_.at(hash);
-
-				AlignedAllocator* allocator = getComponentAllocator(hash);
-
-				if (allocator == nullptr)
-					return nullptr;
-
-				size_t index = allocator->alloc();
-
-				T* component = static_cast<T*>(allocator->at(index));
-
-				if (component != nullptr)
-				{
-					memset(component, 0, sizeof(T));
-					component->componentIndex = index;
-					component->componentList = static_cast<void*>(allocator);
-
-					if (entity->firstComponent == nullptr)
-					{
-						entity->firstComponent = component;
-						entity->lastComponent = component;
-					}
-					else
-					{
-						entity->lastComponent->nextComponent = component;
-						component->prevComponent = entity->lastComponent;
-						entity->lastComponent = component;
-					}
-				}
-
-				return component;
+				found = true;
+				break;
 			}
 		}
-		return nullptr;
-	}
-
-	template<typename T>
-	T* addEntityComponent(EntityHandle* handle)
-	{
-		return addEntityComponent<T>(getEntity(handle));
-	}
-
-	template<typename T>
-	bool registerSystem(const char* systemExposeName, T* system)
-	{
-		const Hash hash = System::getTypeHash<T>();
-		system->initialize(config);
-		systems_.insert(std::make_pair(hash, system));
-		systemsNames_.insert(std::make_pair(hash, systemExposeName));
-		systemsStack_.push(hash);
-		return true;
-	}
-
-	template<typename T, typename std::enable_if<std::is_base_of<Component, T>::value>::type* = nullptr>
-	void registerComponent()
-	{
-		const Hash hash = System::getTypeHash<T>();
-		if (components_.contains(hash))
+		
+		if(found)
 		{
-			char buff[100];
-			snprintf(buff, sizeof(buff), "Component %s is already registered!", typeid(T).name());
-			log(LogLevel::WARN, buff);
+			printf("Component %s is already registered!\n", name);
 		}
 		else
 		{
-			AlignedAllocator* allocator = new AlignedAllocator(sizeof(T), 1024, Engine::onComponentRellocateCallback, this);
-			components_.insert(std::make_pair(hash, allocator));
-			size_t flag = getNextComponentFlag();
-			componentTypes_.insert(std::make_pair(hash, flag));
-
-			char buff[100];
-			snprintf(buff, sizeof(buff), "Registered component %s with bit flag %zu", typeid(T).name(), flag);
-			log(LogLevel::INFO, buff);
+			printf("Registering component %s at [ index: %zu, bitMask: %zu ]\n", name, index, bitMask);
+			componentNames_.push_back(std::make_pair(hash, componentName));
 		}
-	}
-
-	template<typename T>
-	AlignedAllocator* getComponentAllocator()
-	{
-		const Hash hash = System::getTypeHash<T>();
-		return getComponentAllocator(hash);
-	}
-
-	AlignedAllocator* getComponentAllocator(const Hash hash)
-	{
-		if (components_.contains(hash))
-			return components_.at(hash);
-		return nullptr;
+#endif
+		return bitMask;
 	}
 };

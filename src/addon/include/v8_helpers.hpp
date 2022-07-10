@@ -1,7 +1,7 @@
 #pragma once
 
 #include "node.h"
-
+#define V8CallbackArgs const v8::FunctionCallbackInfo<v8::Value>&
 
 inline v8::Local<v8::String> createString(v8::Isolate* isolate, const char* str)
 {
@@ -53,6 +53,11 @@ inline v8::Local<v8::SharedArrayBuffer> createSharedArrayBuffer(v8::Isolate* iso
 	return v8::SharedArrayBuffer::New(isolate, std::move(backingStore));
 }
 
+inline void throwException(v8::Isolate* isolate, const char* exception)
+{
+	isolate->ThrowException(createString(isolate, exception));
+}
+
 struct ObjectBuilder;
 
 template<typename ConstructCallback>
@@ -69,10 +74,11 @@ struct ObjectBuilder
 private:
 	v8::Isolate* isolate_;
 	v8::Local<v8::Context> ctx_;
-	const v8::Local<v8::Object>& obj_;
+	v8::Local<v8::Object> obj_;
 
 public:
-	ObjectBuilder(v8::Isolate* isolate, const v8::Local<v8::Object>& obj) : isolate_(isolate), ctx_(isolate->GetCurrentContext()), obj_(obj) { }
+	ObjectBuilder(v8::Isolate* isolate) : isolate_(isolate), ctx_(isolate->GetCurrentContext()), obj_(v8::Object::New(isolate)) { }
+	ObjectBuilder(v8::Isolate* isolate, v8::Local<v8::Object> obj) : isolate_(isolate), ctx_(isolate->GetCurrentContext()), obj_(obj) { }
 
 	void set(const char* key, const v8::Local<v8::Value>& val) { this->obj_->Set(this->ctx_, createString(this->isolate_, key), val); }
 
@@ -90,4 +96,9 @@ public:
 
 	template<typename ConstructCallback>
 	void setObject(const char* key, ConstructCallback callback) { this->obj_->Set(this->ctx_, createString(this->isolate_, key), createObject(this->isolate_, callback)); }
+
+	v8::Local<v8::Object> build()
+	{
+		return obj_;
+	}
 };

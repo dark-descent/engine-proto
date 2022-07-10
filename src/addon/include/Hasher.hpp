@@ -1,13 +1,13 @@
 #pragma once
 
-using Hash = size_t;
+using Hash = uint64_t;
 
 struct Hasher
 {
 private:
 	constexpr static Hash hashString(const char* str)
 	{
-		size_t hash = 5381;
+		uint64_t hash = 5381;
 		int c = 0;
 
 		while ((c = *str++))
@@ -17,6 +17,8 @@ private:
 	}
 
 public:
-	constexpr static Hash hash(const char* str) { return hashString(str); }
-	constexpr static bool check(Hash& hashStr, const char* str) { return hash(str) == hashStr; }
+	template<typename T>
+	constexpr static Hash hash() noexcept { return hashString(typeid(T).name()); }
+	constexpr static Hash hash(const char* str) noexcept { return hashString(str); }
+	constexpr static bool check(Hash& hashStr, const char* str) noexcept { return hash(str) == hashStr; }
 };

@@ -1,11 +1,11 @@
 #pragma once
 
-#include "Component.hpp"
+#include "framework.hpp"
 #include "Vector2.hpp"
 
-PACK(struct Transform : public Component
+PACK(struct Transform 
 {
-	Vector2 position = Vector2(0, 0);
-	Vector2 rotation = Vector2(0, 0);
-	Vector2 scale = Vector2(0, 0);
+	Vector2 position;
+	Vector2 rotation;
+	Vector2 scale;
 });

@@ -10,7 +10,7 @@ export class Engine
 		console[target](`[INTERNAL] ${msg}`);
 	}
 
-	private static get defaultConfig(): Required<EngineConfig>
+	private static get defaultConfig(): Required<EngineOptionalConfig>
 	{
 		return {
 			logHandler: Engine.defaultLogHandler
@@ -47,8 +47,14 @@ export class Engine
 }
 
 export type EngineConfig = {
+	gameName: string;
 	logHandler?: LogCallback;
 };
+
+export type KeysOfType<T, U> = { [K in keyof T]: T[K] extends U ? K : never }[keyof T];
+export type RequiredKeys<T> = Exclude<KeysOfType<T, Exclude<T[keyof T], undefined>>, undefined>;
+
+export type EngineOptionalConfig = Omit<EngineConfig, RequiredKeys<EngineConfig>>;
 
 type LogLevel = "error" | "exception" | "warn" | "info";
 
