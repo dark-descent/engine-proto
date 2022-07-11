@@ -1,6 +1,7 @@
 #include "Engine.hpp"
 #include "components/Transform.hpp"
 #include "components/RigidBody.hpp"
+#include "SimpleBinary.hpp"
 
 Engine* Engine::engine_ = nullptr;
 uint8_t Engine::componentBitMaskCounter_ = 1;
@@ -17,25 +18,33 @@ void Engine::initialize(V8CallbackArgs args)
 	}
 	else
 	{
-		if (args.Length() != 1)
+		try
 		{
-			throwException(isolate, "Invalid number of arguments!");
-			return;
+			if (args.Length() != 1)
+			{
+				throwException(isolate, "Invalid number of arguments!");
+				return;
+			}
+			else if (!args[0]->IsObject())
+			{
+				throwException(isolate, "argument at index 0 is not of type \"Object\"!");
+				return;
+			}
+
+			ObjectBuilder exports(isolate);
+			Config config(v8::Local<v8::Object>::Cast(args[0]));
+
+			node::AddEnvironmentCleanupHook(isolate, Engine::destroy, isolate);
+
+			engine_ = new Engine(config, exports);
+
+			args.GetReturnValue().Set(exports.build());
 		}
-		else if (!args[0]->IsObject())
+		catch (std::runtime_error e)
 		{
-			throwException(isolate, "argument at index 0 is not of type \"Object\"!");
-			return;
+			printf("Exception: %s\n", e.what());
+			isolate->ThrowException(createString(isolate, e.what()));
 		}
-
-		ObjectBuilder exports(isolate);
-		Config config(v8::Local<v8::Object>::Cast(args[0]));
-
-		node::AddEnvironmentCleanupHook(isolate, Engine::destroy, isolate);
-
-		engine_ = new Engine(config, exports);
-
-		args.GetReturnValue().Set(exports.build());
 	}
 }
 
@@ -66,6 +75,35 @@ Engine::Engine(Config& config, ObjectBuilder& exports) :
 	initSubSystem(sceneManager);
 
 	assetManager.loadSceneFile(Hasher::hash("First Scene"));
+
+	{
+		SimpleBinary::Writer writer("H:\\dmtrllv\\Code\\dark-descent\\editor\\test.bin");
+		
+		writer.write(true);
+		writer.write(false);
+		writer.write(true);
+		writer.write(false);
+		writer.write(0.1f);
+		writer.write(0.2f);
+		writer.write(3.14f);
+	}
+
+	{
+
+		SimpleBinary::Reader reader("H:\\dmtrllv\\Code\\dark-descent\\editor\\test.bin");
+
+		reader.read([](SimpleBinary::Types type, void* value, size_t index)
+		{
+			switch (type)
+			{
+			case SimpleBinary::Types::BOOL:
+				fputs(SimpleBinary::cast<bool>(value) ? "true\n" : "false\n", stdout);
+				break;
+			case SimpleBinary::Types::FLOAT:
+				printf("%f\n", SimpleBinary::cast<float>(value));
+			}
+		});
+	}
 }
 
 Engine::~Engine()
