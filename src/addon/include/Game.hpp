@@ -13,14 +13,14 @@ public:
 	};
 
 private:
-	std::filesystem::path gamePath_;
+	std::filesystem::path gameDir_;
 	std::unordered_map<Hash, Game::SceneInfo> scenes_;
 
 public:
-	Game(std::string& gameFile);
+	Game();
 
 	const char* const getSceneFileName(Hash sceneName);
 	const char* const getSceneFileName(const char* sceneName);
 
-	const std::string getGamePath();
+	const std::string getGameDir();
 };

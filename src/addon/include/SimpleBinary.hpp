@@ -19,8 +19,11 @@ namespace SimpleBinary
 		DOUBLE,
 		LONG_DOUBLE,
 		BOOL,
+		STRING,
 		SIZE
 	};
+
+	const size_t ArrayCountByteSize = 4;
 
 	template<typename T>
 	inline static T cast(void* value) { return *static_cast<T*>(value); }
@@ -51,13 +54,13 @@ namespace SimpleBinary
 			size_t parsedSize = Types::SIZE;
 
 			Types type = Types::NONE;
-			bool shouldReadSize = false;
-			size_t arrSize = 0;
+			// bool shouldReadSize = false;
 			size_t dataByteSize = 0;
 			uint64_t val = 0;
 			std::vector<uint8_t> parsedValues;
 
 			std::vector<char> buffer(ChunkSize, 0);
+			std::vector<char> stringBuffer;
 
 			size_t index = 0;
 
@@ -73,16 +76,21 @@ namespace SimpleBinary
 					{
 						type = static_cast<Types>(buffer[i] & 0x0F);
 						dataByteSize = sizes_[type];
-						shouldReadSize = buffer[i] & 0xF0;
 					}
-					else if (shouldReadSize)
+					else if (type == Types::STRING)
 					{
-						shouldReadSize = false;
+						stringBuffer.push_back(buffer[i]);
+						if(buffer[i] == '\0')
+						{
+							callback(type, static_cast<void*>(stringBuffer.data()), index);
+							type = Types::NONE;
+							index++;
+							stringBuffer.resize(0);
+						}
 					}
 					else
 					{
 						parsedValues.push_back(static_cast<uint8_t>(buffer[i]));
-
 						if (parsedValues.size() == dataByteSize)
 						{
 							val = 0;
@@ -122,7 +130,8 @@ namespace SimpleBinary
 			static_cast<uint8_t>(sizeof(double)),
 			static_cast<uint8_t>(sizeof(long double)),
 			static_cast<uint8_t>(sizeof(bool)),
-		};;
+			static_cast<uint8_t>(sizeof(char))
+		};
 
 		template<typename T>
 		void writeParsedValue(Types type, T val)
@@ -154,6 +163,17 @@ namespace SimpleBinary
 		void write(double);
 		void write(long double);
 		void write(bool);
+
+		void writeStr(const char* string)
+		{
+			fileStream_ << static_cast<uint8_t>(Types::STRING);
+			size_t i = 0;
+			do
+			{
+				fileStream_ << string[i];
+			}
+			while(string[i++] != '\0');
+		}
 
 		template<typename T, typename ...Args>
 		void write(T a, Args... rest)

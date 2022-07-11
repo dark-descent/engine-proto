@@ -1,10 +1,11 @@
 #include "AssetManager.hpp"
 #include "Engine.hpp"
+#include "SimpleBinary.hpp"
 
 void AssetManager::onInitialize(Config& config, ObjectBuilder& exports)
 {
 	printf("AssetManager initialized!\n");
-	scenesPath_ = std::filesystem::path(engine.game.getGamePath()) / "scenes";
+	scenesPath_ = std::filesystem::path(engine.game.getGameDir()) / "scenes";
 	auto s = scenesPath_.string<char>();
 	printf("%s\n", s.c_str());
 }

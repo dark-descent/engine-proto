@@ -1,19 +1,17 @@
 #include "framework.hpp"
 #include "Game.hpp"
 
-Game::Game(std::string& fileName) : scenes_()
+Game::Game() : scenes_()
 {
 #ifdef _DEBUG
-	gamePath_ = std::filesystem::current_path() / "test-project";
+	gameDir_ = std::filesystem::current_path() / "test-project";
 #else
-	gamePath_ = std::filesystem::current_path();
+	gameDir_ = std::filesystem::current_path();
 #endif
 
-	printf("%s\n", getGamePath().c_str());
+	std::filesystem::path gameFilePath = gameDir_ / "game.sb";
 
-	std::filesystem::path gameFilePath = gamePath_ / fileName;
-
-	std::string gameFilePathString = gameFilePath.string<char>() + ".sb";
+	std::string gameFilePathString = gameFilePath.string<char>();
 	std::transform(gameFilePathString.begin(), gameFilePathString.end(), gameFilePathString.begin(), [](char c) { return std::tolower(c); });
 
 	std::ifstream input(gameFilePathString, std::ifstream::binary);
@@ -103,7 +101,7 @@ const char* const Game::getSceneFileName(Hash sceneName)
 	return nullptr;
 }
 
-const std::string Game::getGamePath()
+const std::string Game::getGameDir()
 {
-	return gamePath_.string<char>();
+	return gameDir_.string<char>();
 }

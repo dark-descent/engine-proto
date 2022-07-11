@@ -60,7 +60,7 @@ Engine::Engine(Config& config, ObjectBuilder& exports) :
 	sceneManager(*this),
 	assetManager(*this),
 	subSystems_(),
-	game(config.gameName)
+	game()
 {
 	registerAndExposeComponent<Transform>(exports, "Transform");
 	registerAndExposeComponent<RigidBody>(exports, "RigidBody");
@@ -78,18 +78,17 @@ Engine::Engine(Config& config, ObjectBuilder& exports) :
 
 	{
 		SimpleBinary::Writer writer("H:\\dmtrllv\\Code\\dark-descent\\editor\\test.bin");
-		
+
 		writer.write(true);
 		writer.write(false);
-		writer.write(true);
+		writer.write(0.123f);
+		writer.writeStr("hello world");
+		writer.write(9.876f);
 		writer.write(false);
-		writer.write(0.1f);
-		writer.write(0.2f);
-		writer.write(3.14f);
+		writer.write(true);
 	}
 
 	{
-
 		SimpleBinary::Reader reader("H:\\dmtrllv\\Code\\dark-descent\\editor\\test.bin");
 
 		reader.read([](SimpleBinary::Types type, void* value, size_t index)
@@ -97,10 +96,13 @@ Engine::Engine(Config& config, ObjectBuilder& exports) :
 			switch (type)
 			{
 			case SimpleBinary::Types::BOOL:
-				fputs(SimpleBinary::cast<bool>(value) ? "true\n" : "false\n", stdout);
+				printf("got boolean: %s\n", SimpleBinary::cast<bool>(value) ? "true" : "false");
 				break;
 			case SimpleBinary::Types::FLOAT:
-				printf("%f\n", SimpleBinary::cast<float>(value));
+				printf("got float: %f\n", SimpleBinary::cast<float>(value));
+				break;
+			case SimpleBinary::Types::STRING:
+				printf("got string: %s\n", static_cast<char*>(value));
 			}
 		});
 	}
