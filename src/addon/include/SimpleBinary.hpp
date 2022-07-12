@@ -33,9 +33,7 @@ namespace SimpleBinary
 	public:
 		static void readHeader(const char* file, uint8_t* header);
 	private:
-
 		std::ifstream fileStream_;
-
 		uint8_t sizes_[SimpleBinary::Types::SIZE];
 
 	public:

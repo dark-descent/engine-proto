@@ -76,35 +76,50 @@ Engine::Engine(Config& config, ObjectBuilder& exports) :
 
 	assetManager.loadSceneFile(Hasher::hash("First Scene"));
 
-	{
-		SimpleBinary::Writer writer("H:\\dmtrllv\\Code\\dark-descent\\editor\\test.bin");
+	// size_t count = 200000;
 
-		writer.write(true);
-		writer.write(false);
-		writer.write(0.123f);
-		writer.writeStr("hello world");
-		writer.write(9.876f);
-		writer.write(false);
-		writer.write(true);
+	{
+		// SimpleBinary::Writer writer("H:\\dmtrllv\\Code\\dark-descent\\editor\\test.bin");
+
+
+		// for (size_t i = 0; i < count; i++)
+		// {
+		// 	writer.write((float)i);
+		// 	// writer.write((float)(i * i));
+		// }
 	}
 
-	{
-		SimpleBinary::Reader reader("H:\\dmtrllv\\Code\\dark-descent\\editor\\test.bin");
 
-		reader.read([](SimpleBinary::Types type, void* value, size_t index)
-		{
-			switch (type)
-			{
-			case SimpleBinary::Types::BOOL:
-				printf("got boolean: %s\n", SimpleBinary::cast<bool>(value) ? "true" : "false");
-				break;
-			case SimpleBinary::Types::FLOAT:
-				printf("got float: %f\n", SimpleBinary::cast<float>(value));
-				break;
-			case SimpleBinary::Types::STRING:
-				printf("got string: %s\n", static_cast<char*>(value));
-			}
-		});
+	{
+		// SimpleBinary::Reader reader("H:\\dmtrllv\\Code\\dark-descent\\editor\\test.bin");
+
+		// std::vector<float> floats(count, 0.0f);
+
+		// using std::chrono::high_resolution_clock;
+		// using std::chrono::duration_cast;
+		// using std::chrono::duration;
+		// using std::chrono::milliseconds;
+
+		// auto t1 = high_resolution_clock::now();
+		// reader.read([&](SimpleBinary::Types type, void* value, size_t index)
+		// {
+		// 	switch (type)
+		// 	{
+		// 	case SimpleBinary::Types::BOOL:
+		// 		printf("got boolean: %s\n", SimpleBinary::cast<bool>(value) ? "true" : "false");
+		// 		break;
+		// 	case SimpleBinary::Types::FLOAT:
+		// 		// floats.push_back(SimpleBinary::cast<float>(value));
+		// 		printf("got float: %f\n", SimpleBinary::cast<float>(value));
+		// 		break;
+		// 	case SimpleBinary::Types::STRING:
+		// 		printf("got string: %s\n", static_cast<char*>(value));
+		// 		break;
+		// 	}
+		// });
+		// auto t2 = high_resolution_clock::now();
+		// duration<double, std::milli> ms_double = t2 - t1;
+		// std::cout << ms_double.count() << "ms\n";
 	}
 }
 

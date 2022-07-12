@@ -70,7 +70,7 @@ const runNodeGyp = () =>
 			{
 				"target_name": "addon",
 				"msvs_version": "2019",
-				"cflags_cc": ["-std=c++20", "-fexceptions"],
+				"cflags_cc": ["-std=c++20", "-fexceptions", "-O2"],
 				"win_delay_load_hook": os.platform() === "win32" ? "true" : "false",
 				"sources": files.filter(f => f.endsWith("cpp")),
 				"include_dirs": [
@@ -89,6 +89,7 @@ const runNodeGyp = () =>
 						"msvs_settings": {
 							"VCCLCompilerTool": {
 								"AdditionalOptions": ["-std:c++20", "/EHsc"],
+								"Optimization": 2
 							},
 						},
 					}]
