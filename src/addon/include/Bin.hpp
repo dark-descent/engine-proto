@@ -118,7 +118,6 @@ public:
 				}
 				else if (Enum::Has(info.second, Type::str))
 				{
-					printf("write string\n");
 					std::string* str = reinterpret_cast<std::string*>(ptr);
 					size_t size = str->size();
 					os.write(reinterpret_cast<char*>(&size), sizeof(size_t));
@@ -189,8 +188,6 @@ public:
 
 					if (rest)
 						is.read(dest, rest);
-
-					printf("dyn done :D\n");
 				}
 			}
 		}
@@ -210,20 +207,11 @@ public:
 		TemplateBuilder& addType(Type type)
 		{
 			if (Enum::Cast(type) < Enum::Cast(Type::size))
-			{
-				printf("add type %zu\n", Enum::Cast(type));
 				template_.push_back(std::make_pair(typeSizes[Enum::Cast(type)], type));
-			}
 			else if (Enum::Has(type, Type::vector))
-			{
-				printf("add vector type %zu -> %zu\n", Enum::Cast(type), Enum::Cast(getVectorType(type)));
 				template_.push_back(std::make_pair(typeSizes[Enum::Cast(getVectorType(type))], type));
-			}
 			else if (Enum::Has(type, Type::str))
-			{
-				printf("add string %zu\n", Enum::Cast(type));
 				template_.push_back(std::make_pair(1, type));
-			}
 			return *this;
 		}
 
@@ -238,8 +226,7 @@ public:
 		TemplateBuilder& i64() { return addType(Type::i64); }
 		TemplateBuilder& f32() { return addType(Type::f32); }
 		TemplateBuilder& f64() { return addType(Type::f64); }
-		TemplateBuilder& lf64() { return addType(Type::lf64); }
-		TemplateBuilder& boolean() { return addType(Type::lf64); }
+		TemplateBuilder& boolean() { return addType(Type::boolean); }
 
 		TemplateBuilder& vector(Type type)
 		{
@@ -258,8 +245,6 @@ public:
 		{
 			size_t i = 0;
 			char c;
-			char buf[16] = { 0 };
-			size_t bufI = 0;
 			bool found = false;
 			Type type = Enum::Wrap<Type>(0);
 
