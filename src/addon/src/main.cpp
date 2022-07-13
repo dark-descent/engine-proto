@@ -4,44 +4,32 @@
 
 using namespace v8;
 
-// This macro will define a struct and a Parser object with wich you can read and write files.
-// The first parameter is the name of the struct
-// The second parameter is the name of the Parser object
-// The third parameter is the structs body (filled with Types)
-// The types that you can pass in the body are defined in Bin.hpp (like: U8, U16, U32, U64, I8, I16, I32, I64) and expect a property name.
 PARSE_TEMPLATE(Test, TestParser, {
-	F64V(vec);
+	// F64V(vec);
+	STR(a);
+	STR(b);
+	STR(c);
+	STR(d);
+	STR(e);
 	});
-
-// This macro expands to:
-// struct Test { std::vector<double> vec; };
-// Bin::Template<Test> TestParser = Bin::createTemplate<Test>([](auto builder) { builder.parse("{ F64V(vec); }"); });
 
 NODE_MODULE_INIT()
 {
 	Isolate* isolate = context->GetIsolate();
 
-	// the path where the binary file should be
 	const char* binPath = "H:\\dmtrllv\\Code\\dark-descent\\editor\\test.bin";
 
-	// lets create a Test struct (defined from the PARSE_TEMPLATE(...) above)
 	Test t;
+	t.a = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer hendrerit aliquet mattis. Duis finibus volutpat nunc a eleifend. Sed ac mi dolor. Nullam ac nunc non purus fermentum porttitor. Nam feugiat elit massa, et mollis sem ultricies sit amet. Nulla efficitur ante enim, in placerat elit condimentum non. Duis eu augue maximus, aliquam sem eu, porttitor ipsum. Cras pulvinar augue neque. Phasellus iaculis molestie augue eu accumsan. Fusce dapibus dui erat, in dictum libero venenatis non. Aenean quis nisl vulputate, interdum sapien ac, dictum erat.";
+	t.b = "In fermentum odio vel nulla auctor bibendum. Nunc mollis, lorem quis suscipit lobortis, justo magna faucibus nibh, vel facilisis ex felis at leo. Fusce ac aliquet nisi. Aenean pellentesque arcu faucibus sem sagittis faucibus. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Aliquam semper diam dui, sed consequat urna rhoncus quis. Donec nec mauris nunc. Vestibulum cursus feugiat leo nec tempor. Nam mattis pulvinar tortor sodales vehicula. In iaculis magna non est tristique cursus. Maecenas eget porta magna, eu rutrum arcu. Nam eu mollis turpis, vitae tempus lorem.";
+	t.c = "Nulla facilisi. Mauris tristique fringilla ex, at pretium mauris fringilla ac. Nunc et ultrices enim. Cras ullamcorper neque et hendrerit ultrices. Vestibulum ornare ligula et ipsum fringilla dictum. Nullam aliquam justo eget urna sagittis elementum. Aliquam in fringilla velit. Nullam dolor est, tempor quis neque eu, facilisis imperdiet nisi. Pellentesque a nulla et turpis elementum finibus. Etiam ultrices semper dapibus. Maecenas eget quam volutpat, porttitor neque dictum, ultrices metus. Maecenas non neque tempor, viverra erat eget, interdum turpis. Pellentesque rhoncus tempus commodo. Aliquam massa est, sollicitudin ullamcorper lacinia nec, volutpat sed metus.";
+	t.d = "Quisque nec purus a ante pulvinar laoreet. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Fusce ullamcorper dictum tincidunt. Vivamus hendrerit eget elit vitae metus.";
 
-	// and insert doubles into its vector
-	const size_t size = 200000;
-
-	for (size_t i = 0; i < size; i++)
-		t.vec.push_back((double)i);
-
-	// and write to "H:\\dmtrllv\\Code\\dark-descent\\editor\\test.bin"
 	TestParser.write(&t, binPath);
 
-
-	// to read a binary file into a struct
 	auto testr = TestParser.read(binPath);
 
-	// and to check if the vector size matched
-	std::cout << "Vector size did" << (testr.vec.size() == size ? "" : " not") << " match!" << std::endl;
+	std::cout << testr.a << "\n" << testr.b << "\n" << testr.c << "\n" << testr.d << "\n" << testr.e << std::endl;
 
 	exports->Set(context, createString(isolate, "initialize"), createFunction(isolate, Engine::initialize));
 }

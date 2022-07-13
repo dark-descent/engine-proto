@@ -7,12 +7,6 @@
 class Bin
 {
 public:
-	template<typename T>
-	static void createReader()
-	{
-
-	};
-
 	enum class Types
 	{
 		u8,
@@ -27,12 +21,14 @@ public:
 		f64,
 		lf64,
 		boolean,
+		str,
 		size,
 	};
 
 	enum class DynamicTypes
 	{
 		vector = 0x10,
+		str = 0x20,
 	};
 
 	template<Types type>
@@ -63,7 +59,6 @@ public:
 		return static_cast<const unsigned long long>(type);
 	}
 
-
 	static const unsigned long long DynamicTypesIndex(DynamicTypes type)
 	{
 		return static_cast<const unsigned long long>(type);
@@ -78,6 +73,18 @@ public:
 	static const DynamicTypes DynamicTypesIndexToType(unsigned long long index)
 	{
 		return static_cast<DynamicTypes>(index);
+	}
+
+	template<Types type>
+	static constexpr bool isType(auto number)
+	{
+		return (static_cast<unsigned long long>(number) & TypesIndex<type>()) == TypesIndex<type>();
+	}
+
+	template<DynamicTypes type>
+	static constexpr bool isDynamicType(auto number)
+	{
+		return (static_cast<unsigned long long>(number) & DynamicTypesIndex<type>()) == DynamicTypesIndex<type>();
 	}
 
 	static const size_t typeSizes[TypesIndex<Types::size>()];
@@ -116,7 +123,7 @@ public:
 
 			for (const auto& info : info_)
 			{
-				if (TypesIndex(info.second) & 0x10)
+				if (TypesIndex(info.second) >= DynamicTypesIndex<DynamicTypes::vector>())
 				{
 					push();
 					isDynamicBlock = true;
@@ -130,7 +137,6 @@ public:
 						push();
 						isDynamicBlock = false;
 					}
-
 
 					block.size += info.first;
 				}
@@ -147,13 +153,21 @@ public:
 
 			for (const auto& info : info_)
 			{
-				if (TypesIndex(info.second) & 0x10)
+				if (isDynamicType<DynamicTypes::vector>(info.second))
 				{
 					std::vector<char>* v = reinterpret_cast<std::vector<char>*>(ptr);
 					size_t size = v->size();
 					os.write(reinterpret_cast<char*>(&size), sizeof(size_t));
 					os.write(v->data(), size);
 					ptr += sizeof(std::vector<void*>);
+				}
+				else if (isDynamicType<DynamicTypes::str>(info.second))
+				{
+					std::string* str = reinterpret_cast<std::string*>(ptr);
+					size_t size = str->size();
+					os.write(reinterpret_cast<char*>(&size), sizeof(size_t));
+					os.write(str->c_str(), size);
+					ptr += sizeof(std::string);
 				}
 				else
 				{
@@ -184,7 +198,6 @@ public:
 			{
 				if (block.type == 0)
 				{
-					// buffer.resize(block.size);
 					is.read(buffer.data(), block.size);
 					std::streamsize dataSize = is.gcount();
 					if (dataSize != block.size)
@@ -202,26 +215,35 @@ public:
 					is.read(buffer.data(), sizeof(size_t));
 					size_t s = *reinterpret_cast<size_t*>(buffer.data());
 
-					if ((block.type & DynamicTypesIndex<DynamicTypes::vector>()) == DynamicTypesIndex<DynamicTypes::vector>())
+					char* dest;
+					
+					if (isDynamicType<DynamicTypes::str>(block.type))
+					{
+						std::string* str = reinterpret_cast<std::string*>(ptr);
+						str->resize(s);
+						dest = str->data();
+						dest[s] = '\0';
+						ptr += sizeof(std::string);
+					}
+					else if (isDynamicType<DynamicTypes::vector>(block.type))
 					{
 						std::vector<char>* v = reinterpret_cast<std::vector<char>*>(ptr);
 						v->resize(s);
-						uintptr_t vPtr = reinterpret_cast<uintptr_t>(v->data());
-
-						size_t m = s / bufferSize;
-						size_t rest = s % bufferSize;
-
-						for (size_t i = 0; i < m; i++)
-						{
-							is.read(reinterpret_cast<char*>(vPtr), bufferSize);
-							vPtr += bufferSize;
-						}
-
-						if (rest)
-							is.read(reinterpret_cast<char*>(vPtr), rest);
-
+						dest = v->data();
 						ptr += sizeof(std::vector<char>);
 					}
+
+					size_t m = s / bufferSize;
+					size_t rest = s % bufferSize;
+					
+					for (size_t i = 0; i < m; i++)
+					{
+						is.read(dest, bufferSize);
+						dest += bufferSize;
+					}
+					
+					if (rest)
+						is.read(dest, rest);
 				}
 			}
 
@@ -265,7 +287,7 @@ public:
 
 		TemplateBuilder& string()
 		{
-
+			template_.push_back(std::make_pair(typeSizes[TypesIndex<Types::str>()], TypesIndexToType(TypesIndex<Types::str>() | DynamicTypesIndex<DynamicTypes::str>())));
 			return *this;
 		}
 
@@ -334,14 +356,12 @@ public:
 					ignore = true;
 					buf[bufI] = '\0';
 
-					if (buf[2] == 'v' || buf[3] == 'v' || buf[4] == 'v')
-					{
+					if (buf[0] == 's')
+						string();
+					else if (buf[2] == 'v' || buf[3] == 'v' || buf[4] == 'v')
 						vector(getType());
-					}
 					else
-					{
 						addType(getType());
-					}
 
 					bufI = 0;
 				}
@@ -391,6 +411,7 @@ const size_t Bin::typeSizes[TypesIndex<Types::size>()] = {
 	sizeof(float),
 	sizeof(double),
 	sizeof(bool),
+	sizeof(char),
 	sizeof(long double),
 };
 
@@ -421,6 +442,8 @@ const size_t Bin::typeSizes[TypesIndex<Types::size>()] = {
 #define F32V(__NAME__) std::vector<float> __NAME__
 #define F64V(__NAME__) std::vector<double> __NAME__
 #define LF64V(__NAME__) std::vector<long double> __NAME__
+
+#define STR(__NAME__) std::string __NAME__
 
 #define PARSE_TEMPLATE(__STRUCT_NAME__, __TEMPLATE_NAME__, ...) PACK(struct __STRUCT_NAME__ ##__VA_ARGS__); \
 Bin::Template<__STRUCT_NAME__> __TEMPLATE_NAME__ = Bin::createTemplate<__STRUCT_NAME__>([](auto builder) { builder.parse(#__VA_ARGS__); });
