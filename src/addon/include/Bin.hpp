@@ -177,10 +177,8 @@ public:
 			}
 		}
 
-		T read(const char* path, const size_t bufferSize = 1024)
+		void read(const char* path, T* obj, const size_t bufferSize = 1024)
 		{
-			T data = T();
-
 			std::ifstream is;
 			is.open(path, std::ios::binary | std::ios::in);
 
@@ -188,7 +186,7 @@ public:
 			const int maxSize = is.tellg();
 			is.seekg(0);
 
-			uintptr_t ptr = reinterpret_cast<uintptr_t>(&data);
+			uintptr_t ptr = reinterpret_cast<uintptr_t>(obj);
 
 			std::vector<char> buffer(16, 0);
 			std::vector<char> dynamicBuffer(bufferSize, 0);
@@ -196,31 +194,29 @@ public:
 
 			for (const Bin::Template<T>::DataBlocks& block : dataBlocks_)
 			{
+				printf("read block type: %zu\n", block.type);
 				if (block.type == 0)
 				{
-					is.read(buffer.data(), block.size);
-					std::streamsize dataSize = is.gcount();
-					if (dataSize != block.size)
-					{
-						std::runtime_error("Could not get correct size of data!");
-					}
-					else
-					{
-						memcpy(reinterpret_cast<void*>(ptr), buffer.data(), block.size);
-						ptr += block.size;
-					}
+					printf("read static block with size: %zu\n", block.size);
+					is.read(reinterpret_cast<char*>(ptr), block.size);
+					// std::streamsize dataSize = is.gcount();
+					
+					// memcpy(reinterpret_cast<void*>(ptr), buffer.data(), block.size);
+					ptr += block.size;
+					
 				}
-				else // dynamic type
+				else
 				{
+					printf("read dynamic\n");
 					is.read(buffer.data(), sizeof(size_t));
 					size_t s = *reinterpret_cast<size_t*>(buffer.data());
 
 					char* dest;
-					
+
 					if (isDynamicType<DynamicTypes::str>(block.type))
 					{
 						std::string* str = reinterpret_cast<std::string*>(ptr);
-						str->resize(s);
+						str->resize(s + 1);
 						dest = str->data();
 						dest[s] = '\0';
 						ptr += sizeof(std::string);
@@ -235,19 +231,20 @@ public:
 
 					size_t m = s / bufferSize;
 					size_t rest = s % bufferSize;
-					
+
 					for (size_t i = 0; i < m; i++)
 					{
 						is.read(dest, bufferSize);
 						dest += bufferSize;
 					}
-					
+
+
 					if (rest)
 						is.read(dest, rest);
+
+					printf("dyn done :D\n");
 				}
 			}
-
-			return data;
 		}
 	};
 

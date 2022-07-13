@@ -1,6 +1,5 @@
 #include "AssetManager.hpp"
 #include "Engine.hpp"
-#include "SimpleBinary.hpp"
 
 void AssetManager::onInitialize(Config& config, ObjectBuilder& exports)
 {
