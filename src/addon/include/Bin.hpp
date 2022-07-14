@@ -108,7 +108,23 @@ public:
 
 			for (const auto& info : info_)
 			{
-				if (Enum::Has(info.second, Type::vector))
+				const bool isVector = Enum::Has(info.second, Type::vector);
+				const bool isString = Enum::Has(info.second, Type::str);
+				if (isVector && isString)
+				{
+					std::vector<std::string>* v = reinterpret_cast<std::vector<std::string>*>(ptr);
+					size_t size = v->size();
+					os.write(reinterpret_cast<char*>(&size), sizeof(size_t));
+					for (size_t i = 0; i < size; i++)
+					{
+						const std::string& str = v->at(i);
+						size_t s = str.size();
+						os.write(reinterpret_cast<char*>(&s), sizeof(size_t));
+						os.write(str.c_str(), s);
+					}
+					ptr += sizeof(std::vector<std::string>);
+				}
+				else if (isVector)
 				{
 					std::vector<char>* v = reinterpret_cast<std::vector<char>*>(ptr);
 					size_t size = v->size();
@@ -116,7 +132,7 @@ public:
 					os.write(v->data(), size);
 					ptr += sizeof(std::vector<void*>);
 				}
-				else if (Enum::Has(info.second, Type::str))
+				else if (isString)
 				{
 					std::string* str = reinterpret_cast<std::string*>(ptr);
 					size_t size = str->size();
@@ -160,34 +176,70 @@ public:
 					size_t s = *reinterpret_cast<size_t*>(buffer.data());
 
 					char* dest;
+					const bool isVector = Enum::Has(block.type, Type::vector);
+					const bool isString = Enum::Has(block.type, Type::str);
 
-					if (block.type == Type::str)
+					if (isVector && isString)
 					{
-						std::string* str = reinterpret_cast<std::string*>(ptr);
-						str->resize(s);
-						dest = str->data();
-						dest[s] = '\0';
-						ptr += sizeof(std::string);
+						std::vector<std::string>* v = reinterpret_cast<std::vector<std::string>*>(ptr);
+
+						v->resize(s, std::string());
+
+						for (size_t i = 0; i < s; i++)
+						{
+							is.read(buffer.data(), sizeof(size_t));
+							size_t stringSize = *reinterpret_cast<size_t*>(buffer.data());
+							
+							std::string& str = v->at(i);
+							str.resize(stringSize);
+							dest = str.data();
+							dest[stringSize] = '\0';
+
+							size_t m = stringSize / bufferSize;
+							size_t rest = stringSize % bufferSize;
+
+							for (size_t i = 0; i < m; i++)
+							{
+								is.read(dest, bufferSize);
+								dest += bufferSize;
+							}
+
+							if (rest)
+								is.read(dest, rest);
+						}
+
+						ptr += sizeof(std::vector<std::string>);
 					}
-					else if (Enum::Has(block.type, Type::vector))
+					else
 					{
-						std::vector<char>* v = reinterpret_cast<std::vector<char>*>(ptr);
-						v->resize(s);
-						dest = v->data();
-						ptr += sizeof(std::vector<char>);
+						if (isVector)
+						{
+							std::vector<char>* v = reinterpret_cast<std::vector<char>*>(ptr);
+							v->resize(s);
+							dest = v->data();
+							ptr += sizeof(std::vector<char>);
+						}
+						else if (isString)
+						{
+							std::string* str = reinterpret_cast<std::string*>(ptr);
+							str->resize(s);
+							dest = str->data();
+							dest[s] = '\0';
+							ptr += sizeof(std::string);
+						}
+
+						size_t m = s / bufferSize;
+						size_t rest = s % bufferSize;
+
+						for (size_t i = 0; i < m; i++)
+						{
+							is.read(dest, bufferSize);
+							dest += bufferSize;
+						}
+
+						if (rest)
+							is.read(dest, rest);
 					}
-
-					size_t m = s / bufferSize;
-					size_t rest = s % bufferSize;
-
-					for (size_t i = 0; i < m; i++)
-					{
-						is.read(dest, bufferSize);
-						dest += bufferSize;
-					}
-
-					if (rest)
-						is.read(dest, rest);
 				}
 			}
 		}
@@ -208,6 +260,8 @@ public:
 		{
 			if (Enum::Cast(type) < Enum::Cast(Type::size))
 				template_.push_back(std::make_pair(typeSizes[Enum::Cast(type)], type));
+			else if (Enum::Has(type, Type::vector) && Enum::Has(type, Type::str))
+				template_.push_back(std::make_pair(sizeof(std::string), type));
 			else if (Enum::Has(type, Type::vector))
 				template_.push_back(std::make_pair(typeSizes[Enum::Cast(getVectorType(type))], type));
 			else if (Enum::Has(type, Type::str))
@@ -279,8 +333,11 @@ public:
 							c = str[i];
 							type = Type::vector;
 						}
-
-						if (c == 'u') // unsigned
+						if (c == 's')
+						{
+							type = Enum::Or(type, Type::str);
+						}
+						else if (c == 'u') // unsigned
 						{
 							c = str[++i];
 							if (c == '8')
@@ -365,19 +422,8 @@ public:
 	}
 };
 
-constexpr size_t Bin::typeSizes[Enum::Cast(Type::size)] = {
-	1,
-	2,
-	3,
-	4,
-	1,
-	2,
-	3,
-	4,
-	2,
-	4,
-	1,
-};
-
 #define BIN_TEMPLATE(__STRUCT_NAME__, __TEMPLATE_NAME__, ...) PACK(struct __STRUCT_NAME__ ##__VA_ARGS__); \
+Bin::Template<__STRUCT_NAME__> __TEMPLATE_NAME__ = Bin::createTemplate<__STRUCT_NAME__>([](auto builder) { builder.parse(#__VA_ARGS__); });
+
+#define STATIC_BIN_TEMPLATE(__STRUCT_NAME__, __TEMPLATE_NAME__, ...) PACK(struct __STRUCT_NAME__ ##__VA_ARGS__); \
 Bin::Template<__STRUCT_NAME__> __TEMPLATE_NAME__ = Bin::createTemplate<__STRUCT_NAME__>([](auto builder) { builder.parse(#__VA_ARGS__); });
