@@ -66,6 +66,8 @@ const runNodeGyp = () =>
 			{
 				"target_name": "addon",
 				"msvs_version": "2019",
+				"msvs_precompiled_header": "pch.hpp",
+				"msvs_precompiled_source": "pch.cpp",
 				"cflags_cc": ["-std=c++20", "-fexceptions"],
 				"win_delay_load_hook": os.platform() === "win32" ? "true" : "false",
 				"sources": files.filter(f => f.endsWith("cpp")),
@@ -75,10 +77,10 @@ const runNodeGyp = () =>
 				"conditions": [
 					['OS=="mac"', {
 						"xcode_settings": {
-							'GCC_ENABLE_CPP_EXCEPTIONS': 'YES',
+							"GCC_ENABLE_CPP_EXCEPTIONS": "YES",
 							"CLANG_CXX_LIBRARY": "libc++",
 							"CLANG_CXX_LANGUAGE_STANDARD": "c++20",
-							'MACOSX_DEPLOYMENT_TARGET': '10.14'
+							"MACOSX_DEPLOYMENT_TARGET": "10.14"
 						}
 					}],
 					['OS=="win"', {

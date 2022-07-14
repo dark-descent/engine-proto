@@ -2,20 +2,19 @@
 
 #include "framework.hpp"
 #include "Hasher.hpp"
+#include "Bin.hpp"
 
 class Game
 {
-public:
-	struct SceneInfo
-	{
-		std::string name;
-		std::string fileName;
-	};
-
 private:
-	std::filesystem::path gameDir_;
-	std::unordered_map<Hash, Game::SceneInfo> scenes_;
+	STATIC_BIN_TEMPLATE(GameData, gameDataParser, {
+		Bin::vector<Bin::string> scenes;
+	});
 
+	std::filesystem::path gameDir_;
+	
+	GameData data_;
+	
 public:
 	Game();
 

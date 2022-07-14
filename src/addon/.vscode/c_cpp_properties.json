@@ -2,6 +2,9 @@
     "configurations": [
         {
             "name": "Win32",
+			"browse": {
+				"path": ["${workspaceFolder}"]
+			},
             "includePath": [
                 "${workspaceFolder}/include/**",
 				"~/AppData/Local/node-gyp/Cache/19.0.4/include/node/**"
