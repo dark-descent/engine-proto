@@ -7,13 +7,9 @@
 class Game
 {
 private:
-	STATIC_BIN_TEMPLATE(GameData, gameDataParser, {
-		Bin::vector<Bin::string> scenes;
-	});
-
 	std::filesystem::path gameDir_;
-	
-	GameData data_;
+
+	std::unordered_map<Hash, std::string> scenePaths_;
 	
 public:
 	Game();

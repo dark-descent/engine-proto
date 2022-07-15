@@ -1,429 +1,195 @@
 #pragma once
 
 #include "framework.hpp"
-#include "Enum.hpp"
 
-class Bin
+namespace Bin
 {
-public:
-	using u8 = uint8_t;
-	using u16 = uint16_t;
-	using u32 = uint32_t;
-	using u64 = uint64_t;
-	using i8 = int8_t;
-	using i16 = int16_t;
-	using i32 = int32_t;
-	using i64 = int64_t;
-	using f32 = float;
-	using f64 = double;
-	using lf64 = long double;
-	using boolean = bool;
-
-	using string = std::string;
-
-	template<typename T>
-	using vector = std::vector<T>;
-
-	enum class Type
+	enum Type : uint64_t
 	{
-		u8,
-		u16,
-		u32,
-		u64,
-		i8,
-		i16,
-		i32,
-		i64,
-		f32,
-		f64,
-		boolean,
-		size,
-		vector = 0x10,
-		str = 0x20,
+		U8,
+		U16,
+		U32,
+		U64,
+		I8,
+		I16,
+		I32,
+		I64,
+		F32,
+		F64,
+		BOOL,
+		PRIMITIVES_SIZE,
+		VECTOR,
+		STRING,
+		STRUCT,
+		END = 0x10Ui64
 	};
 
-	static const size_t typeSizes[Enum::Cast(Type::size)];
+	constexpr uint8_t typeSizes[Bin::Type::PRIMITIVES_SIZE] = {
+		1, 2, 4, 8,
+		1, 2, 4, 8,
+		4, 8, 1
+	};
 
-	using TemplateInfo = std::vector<std::pair<size_t, Type>>;
+	PACK(struct TypeInfo
+	{
+		size_t type;
+		size_t size;
+		char* ptr;
 
-	template<typename T>
-	struct Template
+		TypeInfo();
+		TypeInfo(size_t type, size_t size);
+		TypeInfo(size_t type, size_t size, char* ptr);
+	});
+
+	using Header = std::vector<TypeInfo>;
+
+	class Writer
 	{
 	private:
-		struct DataBlock
-		{
-			size_t size;
-			Type type;
-			DataBlock() : size(0), type(Enum::Wrap<Type>(0)) { };
-		};
+		Header header_;
 
-		TemplateInfo info_;
+		std::string file_;
 
-		std::vector<DataBlock> dataBlocks_;
+		void addPrimitiveType(Type type, char* ptr);
 
 	public:
-		Template(TemplateInfo info) : info_(std::move(info)), dataBlocks_()
+		Writer(std::string file);
+		Writer(const Writer&) = delete;
+		Writer(Writer&&) = delete;
+
+		template<typename T>
+		Writer& write(std::vector<T>& vector)
 		{
-			bool isDynamicBlock = false;
-			DataBlock block;
-
-			const auto push = [&]()
+			const size_t vectorSize = vector.size();
+			header_.push_back(TypeInfo(Type::VECTOR, vectorSize));
+			if constexpr (is_specialization<T, std::vector>::value)
 			{
-				if (block.size != 0)
-				{
-					dataBlocks_.push_back(block);
-					block = DataBlock();
-				}
-			};
-
-			for (const auto& info : info_)
+				for (size_t i = 0; i < vectorSize; i++)
+					write<T::value_type>(vector[i]);
+			}
+			else if constexpr (std::is_same<T, std::string>::value)
 			{
-				if (Enum::Cast(info.second) >= Enum::Cast(Type::vector))
+				for (size_t i = 0; i < vectorSize; i++)
 				{
-					push();
-					isDynamicBlock = true;
-					block.type = info.second;
-					block.size = info.first;
-				}
-				else
-				{
-					if (isDynamicBlock)
-					{
-						push();
-						isDynamicBlock = false;
-					}
-
-					block.size += info.first;
+					std::string& str = vector.at(i);
+					header_.push_back(TypeInfo(Type::STRING, str.length(), str.data()));
 				}
 			}
-			push();
-		};
-
-		void write(T* data, const char* path)
-		{
-			std::ofstream os;
-			os.open(path, std::ios::binary | std::ios::out);
-
-			uintptr_t ptr = reinterpret_cast<uintptr_t>(data);
-
-			for (const auto& info : info_)
+			else
 			{
-				const bool isVector = Enum::Has(info.second, Type::vector);
-				const bool isString = Enum::Has(info.second, Type::str);
-				if (isVector && isString)
-				{
-					std::vector<std::string>* v = reinterpret_cast<std::vector<std::string>*>(ptr);
-					size_t size = v->size();
-					os.write(reinterpret_cast<char*>(&size), sizeof(size_t));
-					for (size_t i = 0; i < size; i++)
-					{
-						const std::string& str = v->at(i);
-						size_t s = str.size();
-						os.write(reinterpret_cast<char*>(&s), sizeof(size_t));
-						os.write(str.c_str(), s);
-					}
-					ptr += sizeof(std::vector<std::string>);
-				}
-				else if (isVector)
-				{
-					std::vector<char>* v = reinterpret_cast<std::vector<char>*>(ptr);
-					size_t size = v->size();
-					os.write(reinterpret_cast<char*>(&size), sizeof(size_t));
-					os.write(v->data(), size);
-					ptr += sizeof(std::vector<void*>);
-				}
-				else if (isString)
-				{
-					std::string* str = reinterpret_cast<std::string*>(ptr);
-					size_t size = str->size();
-					os.write(reinterpret_cast<char*>(&size), sizeof(size_t));
-					os.write(str->c_str(), size);
-					ptr += sizeof(std::string);
-				}
-				else
-				{
-					os.write(reinterpret_cast<char*>(ptr), info.first);
-					ptr += info.first;
-				}
+				write(*vector.data());
 			}
+			header_.push_back(TypeInfo(Type::VECTOR | Type::END, 0));
+			return *this;
 		}
 
-		void read(const char* path, T* obj, const size_t bufferSize = 1024)
+		Writer& write(std::string& str)
 		{
-			std::ifstream is;
-			is.open(path, std::ios::binary | std::ios::in);
-
-			is.seekg(0, is.end);
-			const int maxSize = is.tellg();
-			is.seekg(0);
-
-			char* ptr = reinterpret_cast<char*>(obj);
-
-			std::vector<char> buffer(16, 0);
-			std::vector<char> dynamicBuffer(bufferSize, 0);
-			uintptr_t dynBufferPtr = reinterpret_cast<uintptr_t>(dynamicBuffer.data());
-
-			for (const Bin::Template<T>::DataBlock& block : dataBlocks_)
-			{
-				if (Enum::Cast(block.type) == 0)
-				{
-					is.read(ptr, block.size);
-					ptr += block.size;
-				}
-				else
-				{
-					is.read(buffer.data(), sizeof(size_t));
-					size_t s = *reinterpret_cast<size_t*>(buffer.data());
-
-					char* dest;
-					const bool isVector = Enum::Has(block.type, Type::vector);
-					const bool isString = Enum::Has(block.type, Type::str);
-
-					if (isVector && isString)
-					{
-						std::vector<std::string>* v = reinterpret_cast<std::vector<std::string>*>(ptr);
-
-						v->resize(s, std::string());
-
-						for (size_t i = 0; i < s; i++)
-						{
-							is.read(buffer.data(), sizeof(size_t));
-							size_t stringSize = *reinterpret_cast<size_t*>(buffer.data());
-							
-							std::string& str = v->at(i);
-							str.resize(stringSize);
-							dest = str.data();
-							dest[stringSize] = '\0';
-
-							size_t m = stringSize / bufferSize;
-							size_t rest = stringSize % bufferSize;
-
-							for (size_t i = 0; i < m; i++)
-							{
-								is.read(dest, bufferSize);
-								dest += bufferSize;
-							}
-
-							if (rest)
-								is.read(dest, rest);
-						}
-
-						ptr += sizeof(std::vector<std::string>);
-					}
-					else
-					{
-						if (isVector)
-						{
-							std::vector<char>* v = reinterpret_cast<std::vector<char>*>(ptr);
-							v->resize(s);
-							dest = v->data();
-							ptr += sizeof(std::vector<char>);
-						}
-						else if (isString)
-						{
-							std::string* str = reinterpret_cast<std::string*>(ptr);
-							str->resize(s);
-							dest = str->data();
-							dest[s] = '\0';
-							ptr += sizeof(std::string);
-						}
-
-						size_t m = s / bufferSize;
-						size_t rest = s % bufferSize;
-
-						for (size_t i = 0; i < m; i++)
-						{
-							is.read(dest, bufferSize);
-							dest += bufferSize;
-						}
-
-						if (rest)
-							is.read(dest, rest);
-					}
-				}
-			}
+			header_.push_back(TypeInfo(Type::STRING, str.length(), reinterpret_cast<char*>(std::addressof(str))));
+			return *this;
 		}
+
+		template<typename T>
+		Writer& write(T& value)
+		{
+			if constexpr (std::is_same<T, uint8_t>::value)
+			{
+				addPrimitiveType(Type::U8, reinterpret_cast<char*>(std::addressof(value)));
+			}
+			else if constexpr (std::is_same<T, uint16_t>::value)
+			{
+				addPrimitiveType(Type::U16, reinterpret_cast<char*>(std::addressof(value)));
+			}
+			else if constexpr (std::is_same<T, uint32_t>::value)
+			{
+				addPrimitiveType(Type::U32, reinterpret_cast<char*>(std::addressof(value)));
+			}
+			else if constexpr (std::is_same<T, uint64_t>::value)
+			{
+				addPrimitiveType(Type::U64, reinterpret_cast<char*>(std::addressof(value)));
+			}
+			else if constexpr (std::is_same<T, int8_t>::value)
+			{
+				addPrimitiveType(Type::I8, reinterpret_cast<char*>(std::addressof(value)));
+			}
+			else if constexpr (std::is_same<T, int16_t>::value)
+			{
+				addPrimitiveType(Type::I16, reinterpret_cast<char*>(std::addressof(value)));
+			}
+			else if constexpr (std::is_same<T, int32_t>::value)
+			{
+				addPrimitiveType(Type::I32, reinterpret_cast<char*>(std::addressof(value)));
+			}
+			else if constexpr (std::is_same<T, int64_t>::value)
+			{
+				addPrimitiveType(Type::I64, reinterpret_cast<char*>(std::addressof(value)));
+			}
+			else if constexpr (std::is_same<T, float>::value)
+			{
+				addPrimitiveType(Type::F32, reinterpret_cast<char*>(std::addressof(value)));
+			}
+			else if constexpr (std::is_same<T, double>::value)
+			{
+				addPrimitiveType(Type::F64, reinterpret_cast<char*>(std::addressof(value)));
+			}
+			else if constexpr (std::is_same<T, bool>::value)
+			{
+				addPrimitiveType(Type::BOOL, reinterpret_cast<char*>(std::addressof(value)));
+			}
+			else
+			{
+				header_.push_back(TypeInfo(Type::STRUCT, sizeof(T), reinterpret_cast<char*>(std::addressof(value))));
+			}
+			return *this;
+		}
+
+		void flush();
+
+	private:
+		void flushHeader(std::ofstream& os);
+
+		size_t flushVector(std::ofstream& os, size_t index, size_t size);
 	};
 
-	template<typename T>
-	struct TemplateBuilder
+	struct Parser
 	{
 	private:
-		TemplateInfo template_;
-
-		inline Type getVectorType(Type type)
-		{
-			return Enum::And(type, Enum::Wrap<Type>(0xF));
-		}
-
-		TemplateBuilder& addType(Type type)
-		{
-			if (Enum::Cast(type) < Enum::Cast(Type::size))
-				template_.push_back(std::make_pair(typeSizes[Enum::Cast(type)], type));
-			else if (Enum::Has(type, Type::vector) && Enum::Has(type, Type::str))
-				template_.push_back(std::make_pair(sizeof(std::string), type));
-			else if (Enum::Has(type, Type::vector))
-				template_.push_back(std::make_pair(typeSizes[Enum::Cast(getVectorType(type))], type));
-			else if (Enum::Has(type, Type::str))
-				template_.push_back(std::make_pair(1, type));
-			return *this;
-		}
+		std::ifstream& is;
+		size_t infoIndex;
+		Header header;
 
 	public:
-		TemplateBuilder& u8() { return addType(Type::u8); }
-		TemplateBuilder& u16() { return addType(Type::u16); }
-		TemplateBuilder& u32() { return addType(Type::u32); }
-		TemplateBuilder& u64() { return addType(Type::u64); }
-		TemplateBuilder& i8() { return addType(Type::i8); }
-		TemplateBuilder& i16() { return addType(Type::i16); }
-		TemplateBuilder& i32() { return addType(Type::i32); }
-		TemplateBuilder& i64() { return addType(Type::i64); }
-		TemplateBuilder& f32() { return addType(Type::f32); }
-		TemplateBuilder& f64() { return addType(Type::f64); }
-		TemplateBuilder& boolean() { return addType(Type::boolean); }
+		Parser(std::ifstream& is);
 
-		TemplateBuilder& vector(Type type)
+		inline const Header& getHeader() { return header; }
+
+	private:
+		void read(char* ptr);
+		size_t readVector(char* ptr, size_t nextIndex, size_t size);
+
+	public:
+		template<typename T>
+		void read(T& data)
 		{
-			const auto i = Enum::Cast(type);
-			template_.push_back(std::make_pair(typeSizes[i], Enum::Or(type, Type::vector)));
-			return *this;
-		}
-
-		TemplateBuilder& string()
-		{
-			template_.push_back(std::make_pair(1, Type::str));
-			return *this;
-		}
-
-		TemplateBuilder& parse(const char* str)
-		{
-			size_t i = 0;
-			char c;
-			bool found = false;
-			Type type = Enum::Wrap<Type>(0);
-
-			do
-			{
-				c = str[i++];
-
-				if (c < 40 || c == '{' || c == '}')
-					continue;
-
-				if (found && (c == ';'))
-				{
-					found = false;
-				}
-				else if (!found && (c == ':'))
-				{
-					i++;
-					if (str[i] == ':')
-						i++;
-
-					c = str[i];
-
-					if (c == 's') // string
-					{
-						type = Type::str;
-					}
-					else
-					{
-						if (c == 'v') // vector
-						{
-							i += 12;
-							c = str[i];
-							type = Type::vector;
-						}
-						if (c == 's')
-						{
-							type = Enum::Or(type, Type::str);
-						}
-						else if (c == 'u') // unsigned
-						{
-							c = str[++i];
-							if (c == '8')
-							{
-								type = Enum::Or(type, Type::u8);
-							}
-							else if (c == '1')
-							{
-								type = Enum::Or(type, Type::u16);
-							}
-							else if (c == '3')
-							{
-								type = Enum::Or(type, Type::u32);
-							}
-							else if (c == '6')
-							{
-								type = Enum::Or(type, Type::u64);
-							}
-						}
-						else if (c == 'i') // signed
-						{
-							c = str[++i];
-							if (c == '8')
-							{
-								type = Enum::Or(type, Type::i8);
-							}
-							else if (c == '1')
-							{
-								type = Enum::Or(type, Type::i16);
-							}
-							else if (c == '3')
-							{
-								type = Enum::Or(type, Type::i32);
-							}
-							else if (c == '6')
-							{
-								type = Enum::Or(type, Type::i64);
-							}
-						}
-						else if (c == 'b') // boolean
-						{
-							type = Enum::Or(type, Type::boolean);
-						}
-						else if (c == 'f')
-						{
-							c = str[++i];
-							if (c == '3')
-							{
-								type = Enum::Or(type, Type::f32);
-							}
-							else if (c == '6')
-							{
-								type = Enum::Or(type, Type::f64);
-							}
-						}
-					}
-
-					addType(type);
-					Type type = Enum::Wrap<Type>(0);
-					found = true;
-				}
-			} while (c != '\0');
-
-			return *this;
-		}
-
-		Template<T> build()
-		{
-			return Template<T>(template_);
+			read(reinterpret_cast<char*>(std::addressof(data)));
 		}
 	};
 
-	template<typename T>
-	using TemplateBuildCallback = void(*)(TemplateBuilder<T>&);
-
-	template<typename T>
-	static Template<T> createTemplate(TemplateBuildCallback<T> callback)
+	class Reader
 	{
-		TemplateBuilder<T> builder;
-		callback(builder);
-		return builder.build();
-	}
+		std::string file_;
+
+	public:
+		Reader(std::string file);
+		Reader(const Reader&) = delete;
+		Reader(Reader&&) = delete;
+
+		template<typename T>
+		void read(T callback)
+		{
+			std::ifstream is = std::ifstream(file_, std::ifstream::beg | std::ifstream::binary);
+			Parser parser = Parser(is);
+			callback(parser);
+		}
+	};
 };
-
-#define BIN_TEMPLATE(__STRUCT_NAME__, __TEMPLATE_NAME__, ...) PACK(struct __STRUCT_NAME__ ##__VA_ARGS__); \
-Bin::Template<__STRUCT_NAME__> __TEMPLATE_NAME__ = Bin::createTemplate<__STRUCT_NAME__>([](auto builder) { builder.parse(#__VA_ARGS__); });
-
-#define STATIC_BIN_TEMPLATE(__STRUCT_NAME__, __TEMPLATE_NAME__, ...) PACK(struct __STRUCT_NAME__ ##__VA_ARGS__); \
-Bin::Template<__STRUCT_NAME__> __TEMPLATE_NAME__ = Bin::createTemplate<__STRUCT_NAME__>([](auto builder) { builder.parse(#__VA_ARGS__); });
