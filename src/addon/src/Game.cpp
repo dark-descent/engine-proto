@@ -1,7 +1,7 @@
 #include "framework.hpp"
 #include "Game.hpp"
 
-Game::Game() : scenePaths_()
+Game::Game() : sceneNames_()
 {
 #ifdef _DEBUG
 	gameDir_ = std::filesystem::current_path() / "test-project";
@@ -15,27 +15,13 @@ Game::Game() : scenePaths_()
 
 	reader.read([&](Bin::Parser& parser)
 	{
-		std::vector<std::string> sceneNames;
-		parser.read(sceneNames);
-
-		size_t i = 1;
-		char buf[256] = { 0 };
-		for (const auto& str : sceneNames)
-		{
-			snprintf(buf, sizeof(buf), "%zu", i++);
-			std::string scenePath = std::string(buf) + std::string(".bin");
-			std::cout << "got scene " << str.c_str() << " with path scenes/" << scenePath.c_str() << std::endl;
-			Hash h = Hasher::hash(str.c_str());
-			scenePaths_.emplace(std::make_pair(h, scenePath));
-		}
+		parser.read(sceneNames_);
 	});
 }
 
-const char* const Game::getSceneFileName(Hash sceneName)
+const std::vector<std::string>& Game::getSceneNames()
 {
-	if (scenePaths_.contains(sceneName))
-		return scenePaths_.at(sceneName).c_str();
-	return nullptr;
+	return sceneNames_;
 }
 
 const std::string Game::getGameDir()

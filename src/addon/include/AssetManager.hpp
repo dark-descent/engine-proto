@@ -51,5 +51,5 @@ public:
 	}
 
 public:
-	void loadSceneFile(Hash sceneName);
+	
 };

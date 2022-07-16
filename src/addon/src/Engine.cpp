@@ -73,7 +73,11 @@ Engine::Engine(Config& config, ObjectBuilder& exports) :
 	initSubSystem(assetManager);
 	initSubSystem(sceneManager);
 
-	assetManager.loadSceneFile(Hasher::hash("First Scene"));
+	sceneManager.addScene<true>("Test");
+
+	Scene& scene = sceneManager.getActiveScene();
+
+	scene.addEntity();
 }
 
 Engine::~Engine()

@@ -9,13 +9,12 @@ class Game
 private:
 	std::filesystem::path gameDir_;
 
-	std::unordered_map<Hash, std::string> scenePaths_;
+	std::vector<std::string> sceneNames_;
 	
 public:
 	Game();
 
-	const char* const getSceneFileName(Hash sceneName);
-	const char* const getSceneFileName(const char* sceneName);
+	const std::vector<std::string>& getSceneNames();
 
 	const std::string getGameDir();
 };

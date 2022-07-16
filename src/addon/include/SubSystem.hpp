@@ -43,8 +43,9 @@ private:
 
 #define SUB_SYSTEM_CLASS(__name__) class __name__ : public SubSystem
 
-#define SUB_SYSTEM_OVERRIDES(__name__) protected: \
-	__name__ (Engine& engine) : SubSystem(engine) {} \
+#define SUB_SYSTEM_OVERRIDES(__name__, ...) protected: \
+	__name__ (Engine& engine) : SubSystem(engine), __VA_ARGS__ {} \
 	void onInitialize(Config& config, ObjectBuilder& exports) override; \
 	void onTerminate() override; \
-	friend class Engine;
+	friend class Engine; \
+	

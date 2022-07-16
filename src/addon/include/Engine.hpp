@@ -3,12 +3,9 @@
 #include "framework.hpp"
 #include "Hasher.hpp"
 #include "Component.hpp"
-#include "ArchType.hpp"
 #include "AssetManager.hpp"
 #include "SceneManager.hpp"
 #include "Game.hpp"
-
-
 class Engine
 {
 private:
@@ -22,7 +19,7 @@ private:
 	static void destroy(void* data);
 
 	bool isInitialized_ = false;
-	std::unordered_map<uint64_t, ArchType> archTypes_;
+	
 	std::vector<Component> components_;
 	std::vector<SubSystem*> subSystems_;
 
@@ -74,6 +71,7 @@ private:
 			componentNames_.push_back(std::make_pair(hash, componentName));
 		}
 #endif
+	
 		return bitMask;
 	}
 };
