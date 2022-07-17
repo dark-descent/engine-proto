@@ -1,10 +1,14 @@
 #pragma once
 
-class ArchType
-{
-	size_t bitMask_;
-	size_t size_;
+#include "framework.hpp"
 
-public:
+struct ArchType
+{
+	size_t bitMask;
+	size_t size;
+
+	std::vector<ArchType*> remove;
+	std::vector<ArchType*> add;
+
 	ArchType(size_t bitMask, size_t size);
 };

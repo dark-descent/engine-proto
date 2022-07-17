@@ -40,12 +40,11 @@ private:
 	Engine(Engine&&) = delete;
 
 	template<typename T>
-	uint64_t registerAndExposeComponent(ObjectBuilder& exports, const char* name)
+	size_t registerAndExposeComponent(ObjectBuilder& exports, const char* name)
 	{
-		const uint64_t bitMask = componentBitMaskCounter_;
 		const size_t index = components_.size();
+		const uint64_t bitMask = 1ULL << index;
 		components_.push_back(Component(bitMask, sizeof(T)));
-		componentBitMaskCounter_ <<= 1;
 
 #ifdef _DEBUG
 		const Hash hash = Hasher::hash<T>();
@@ -72,6 +71,11 @@ private:
 		}
 #endif
 	
-		return bitMask;
+		return index;
 	}
+	
+public:
+	const size_t getComponentSize(size_t index);
+	const size_t getComponentBitMask(size_t index);
+	const Component& getComponent(size_t index);
 };

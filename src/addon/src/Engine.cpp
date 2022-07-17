@@ -61,8 +61,8 @@ Engine::Engine(Config& config, ObjectBuilder& exports) :
 	subSystems_(),
 	game()
 {
-	registerAndExposeComponent<Transform>(exports, "Transform");
-	registerAndExposeComponent<RigidBody>(exports, "RigidBody");
+	const size_t transform = registerAndExposeComponent<Transform>(exports, "Transform");
+	const size_t rigidBody = registerAndExposeComponent<RigidBody>(exports, "RigidBody");
 
 	const auto initSubSystem = [&](SubSystem& subSystem)
 	{
@@ -73,14 +73,32 @@ Engine::Engine(Config& config, ObjectBuilder& exports) :
 	initSubSystem(assetManager);
 	initSubSystem(sceneManager);
 
-	sceneManager.addScene<true>("Test");
+	Scene& scene = sceneManager.addScene("Test", true);
 
-	Scene& scene = sceneManager.getActiveScene();
+	EntityHandle& entity = scene.addEntity();
 
-	scene.addEntity();
+	printf("got entity!");
+	
+	scene.addComponentToEntity(entity, transform);
 }
 
 Engine::~Engine()
 {
 
+}
+
+const size_t Engine::getComponentSize(size_t index)
+{
+	return components_.at(index).getSize();
+}
+
+const size_t Engine::getComponentBitMask(size_t index)
+{
+	printf("get component at index %zu\n", index);
+	return components_.at(index).getBitMask();
+}
+
+const Component& Engine::getComponent(size_t index)
+{
+	return components_.at(index);
 }

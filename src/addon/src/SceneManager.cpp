@@ -12,8 +12,8 @@ void SceneManager::onInitialize(Config& config, ObjectBuilder& exports)
 	{
 		std::string scenePath = createScenePath(i++);
 		std::cout << "got scene " << name.c_str() << " with path scenes/" << scenePath.c_str() << std::endl;
-		Hash h = Hasher::hash(name.c_str());
-		scenes_.emplace(std::make_pair(h, Scene(name, scenePath)));
+		const Hash h = Hasher::hash(name.c_str());
+		scenes_.emplace(h, Scene(engine, name, scenePath));
 	}
 }
 
@@ -22,7 +22,7 @@ void SceneManager::onTerminate()
 
 }
 
-Scene& SceneManager::loadScene(Hash hash)
+Scene& SceneManager::loadScene(const Hash hash)
 {
 	if (!scenes_.contains(hash))
 		throw std::runtime_error("Could not load scene!");
@@ -42,6 +42,16 @@ Scene& SceneManager::loadScene(Hash hash)
 	return *activeScene_;
 }
 
+Scene& SceneManager::addScene(std::string name, bool load)
+{
+	Hash h = Hasher::hash(name.c_str());
+	if (scenes_.contains(h))
+		throw std::runtime_error("Scene already exists!");
+	scenes_.emplace(std::make_pair(h, Scene(engine, name, createScenePath(scenes_.size() + 1))));
+	if (load)
+		activeScene_ = std::addressof(scenes_.at(h));
+	return *activeScene_;
+}
 
 Scene& SceneManager::getActiveScene()
 {

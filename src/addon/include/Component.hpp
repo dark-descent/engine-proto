@@ -1,5 +1,13 @@
 #pragma once
 
-#include <ArchType.hpp>
+class Component
+{
+	size_t bitMask_;
+	size_t size_;
 
-using Component = ArchType;
+public:
+	Component(size_t bitMask, size_t size);
+
+	const size_t getSize();
+	const size_t getBitMask();
+};
