@@ -75,13 +75,14 @@ void Scene::addComponentToEntity(EntityHandle& entity, size_t componentIndex)
 
 	if (it == arch.add.end())
 	{
+
 		targetIndex = addArchType(newArchBitMask);
 		ArchType& newArch = getArchType(targetIndex);
 
-		// newArch.log();
+		printf("add arch type from %zu -> %zu\n", entity.archType, targetIndex);
 
 		// iterate siblings
-		for (const auto& index : arch.add)
+		for (const auto& index : getArchType(entity.archType).add)
 		{
 			ArchType& a = getArchType(index);
 			size_t checkBitMask = a.bitMask | newArchBitMask;
@@ -89,11 +90,11 @@ void Scene::addComponentToEntity(EntityHandle& entity, size_t componentIndex)
 			if (it != a.add.end()) // combo found!
 			{
 				const ArchTypeIndex i = *it;
-				ArchType& comboArch = getArchType(i);
+				getArchType(i).remove.emplace_back(targetIndex);
 				newArch.add.emplace_back(i); // bind it
-				comboArch.remove.emplace_back(targetIndex);
 			}
 		}
+
 		getArchType(entity.archType).add.emplace_back(targetIndex);
 		newArch.remove.emplace_back(entity.archType);
 	}
