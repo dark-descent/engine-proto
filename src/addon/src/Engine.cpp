@@ -75,11 +75,18 @@ Engine::Engine(Config& config, ObjectBuilder& exports) :
 
 	Scene& scene = sceneManager.addScene("Test", true);
 
-	EntityHandle& entity = scene.addEntity();
+	EntityHandle& entityA = scene.addEntity();
+	EntityHandle& entityB = scene.addEntity();
+	EntityHandle& entityC = scene.addEntity();
 
-	printf("got entity!");
-	
-	scene.addComponentToEntity(entity, transform);
+	scene.addComponentToEntity(entityA, transform);
+	scene.addComponentToEntity(entityB, transform);
+	scene.addComponentToEntity(entityC, transform);
+	scene.addComponentToEntity(entityC, rigidBody);
+
+	Logger::log("EntityA", scene.getArchType(entityA.archType));
+	Logger::log("EntityB", scene.getArchType(entityB.archType));
+	Logger::log("EntityC", scene.getArchType(entityC.archType));
 }
 
 Engine::~Engine()
@@ -94,7 +101,6 @@ const size_t Engine::getComponentSize(size_t index)
 
 const size_t Engine::getComponentBitMask(size_t index)
 {
-	printf("get component at index %zu\n", index);
 	return components_.at(index).getBitMask();
 }
 

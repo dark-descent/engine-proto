@@ -9,16 +9,10 @@
 template<size_t Count = 1024>
 class EntityHandleAllocator
 {
-public:
-	PACK(struct Index {
-		int32_t buffer;
-		int32_t index;
-	});
-
 private:
-	Index insertIndex_;
+	EntityHandleIndex insertIndex_;
 	std::vector<EntityHandle*> buffers_;
-	std::stack<Index> freeIndices_;
+	std::stack<EntityHandleIndex> freeIndices_;
 
 	constexpr size_t bufferSize() { return Count * sizeof(EntityHandle); }
 
@@ -29,7 +23,7 @@ private:
 
 	size_t size()
 	{
-		return (insertIndex_.buffer * bufferSize()) + insertIndex_.index;
+		return (insertIndex_.buffer * Count) + insertIndex_.index;
 	}
 
 	friend class Engine;
@@ -58,46 +52,39 @@ public:
 		int32_t bi = insertIndex_.buffer;
 		int32_t i = insertIndex_.index++;
 		EntityHandle* handle = &buffers_[bi][i];
-		printf("alloc at %i, %i\n", bi, i);
+		handle->index = { bi, i };
 		if (insertIndex_.index >= bufferSize())
 		{
 			insertIndex_.index = 0;
 			insertIndex_.buffer++;
 			buffers_.emplace_back(allocBuffer());
-			printf("new buffer at %i, %i\n", bi, i);
 		}
 		return *handle;
 	}
 
-	void free(size_t index)
+	void free(EntityHandle& handle)
 	{
+		int32_t bi, i;
 
-	}
+		if(insertIndex_.index == 0)
+		{
+			bi = insertIndex_--;
+			i = insertIndex_.index;
+		}
+		else
+		{
+			bi = insertIndex_.buffer;
+			i = insertIndex_.index - 1;
+		}
 
-	void free(EntityHandle* handle)
-	{
-		// const int32_t bi = handle->handleIndex.buffer;
-		// const int32_t i = handle->handleIndex.index;
-		// int32_t lbi = insertIndex_.buffer;
-		// int32_t li = insertIndex_.index - 1;
+		if(bi < 0)
+			throw std::runtime_error("Tried to free already freed handle!");
 
-		// if (li < 0)
-		// {
-		// 	lbi--;
-		// 	li = bufferSize_ - 1;
-		// }
+		if(handle.index.buffer == bi && handle.index.index == i)
+			insertIndex_ = { bi, i };
+		else
+			freeIndices_.emplace(handle.index);
 
-		// if (bi != lbi || li != i)
-		// {
-		// 	EntityHandleAllocatorIndex index = { bi, i };
-		// 	freeIndices_.push(index);
-		// }
-		// else
-		// {
-		// 	insertIndex_.buffer = lbi;
-		// 	insertIndex_.index = li;
-		// }
-
-		// handle->handleIndex = { -1, -1 };
+		handle.index = { -1, 0 };
 	}
 };

@@ -44,7 +44,7 @@ private:
 	{
 		const size_t index = components_.size();
 		const uint64_t bitMask = 1ULL << index;
-		components_.push_back(Component(bitMask, sizeof(T)));
+		components_.emplace_back(bitMask, sizeof(T));
 
 #ifdef _DEBUG
 		const Hash hash = Hasher::hash<T>();

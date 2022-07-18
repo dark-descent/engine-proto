@@ -11,7 +11,7 @@ void SceneManager::onInitialize(Config& config, ObjectBuilder& exports)
 	for (const auto& name : names)
 	{
 		std::string scenePath = createScenePath(i++);
-		std::cout << "got scene " << name.c_str() << " with path scenes/" << scenePath.c_str() << std::endl;
+		std::cout << "Found scene " << name.c_str() << " with path scenes/" << scenePath.c_str() << std::endl;
 		const Hash h = Hasher::hash(name.c_str());
 		scenes_.emplace(h, Scene(engine, name, scenePath));
 	}
@@ -35,7 +35,6 @@ Scene& SceneManager::loadScene(const Hash hash)
 
 	reader.read([&](Bin::Parser& parser)
 	{
-		printf("loaded scene %s\n", scene.name().c_str());
 		activeScene_ = std::addressof(scene);
 	});
 

@@ -2,13 +2,24 @@
 
 #include "framework.hpp"
 
-struct ArchType
+#include "Component.hpp"
+#include "Logger.hpp"
+
+using ArchTypeIndex = size_t;
+
+class ArchType : public Logger::ILog
 {
+public:
+	ArchTypeIndex index;
 	size_t bitMask;
 	size_t size;
+	std::vector<ArchTypeIndex> remove;
+	std::vector<ArchTypeIndex> add;
+	std::vector<ComponentLayout> componentLayouts;
 
-	std::vector<ArchType*> remove;
-	std::vector<ArchType*> add;
+	ArchType(ArchTypeIndex index, size_t bitMask, size_t size, std::vector<ComponentLayout>& layout);
 
-	ArchType(size_t bitMask, size_t size);
+	void* alloc();
+
+	void log();
 };

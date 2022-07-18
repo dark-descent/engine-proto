@@ -15,8 +15,9 @@ private:
 	std::string path_;
 
 	std::vector<ArchType> archTypes_;
-	ArchType& rootArchType_;
 	EntityHandleAllocator<1024> entityHandles_;
+
+	inline ArchTypeIndex addArchType(size_t bitMask);
 
 public:
 	Scene(Engine& engine, std::string name, std::string path);
@@ -29,4 +30,7 @@ public:
 	EntityHandle& addEntity(std::string name = "GameObject");
 
 	void addComponentToEntity(EntityHandle& entity, size_t component);
+
+	ArchType& getArchType(size_t index);
+	ArchType& getRootArchType();
 };

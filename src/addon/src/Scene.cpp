@@ -6,19 +6,16 @@ Scene::Scene(Engine& engine, std::string name, std::string path) :
 	name_(name),
 	path_(path),
 	archTypes_(),
-	rootArchType_(archTypes_.emplace_back(0, 0)),
 	entityHandles_()
 {
-
+	addArchType(0);
 }
-
 
 Scene::Scene(Scene&& other) :
 	engine_(other.engine_),
 	name_(std::move(other.name_)),
 	path_(std::move(other.path_)),
 	archTypes_(std::move(other.archTypes_)),
-	rootArchType_(other.rootArchType_),
 	entityHandles_(std::move(other.entityHandles_))
 {
 
@@ -34,12 +31,88 @@ const std::string& Scene::path()
 	return path_;
 }
 
-EntityHandle& Scene::addEntity(std::string name)
+ArchTypeIndex Scene::addArchType(size_t bitMask)
 {
-	return entityHandles_.alloc();
+	ArchTypeIndex index = archTypes_.size();
+	size_t bitMaskTest = bitMask;
+	std::vector<ComponentLayout> componentLayouts;
+	size_t size = 0;
+	for (size_t i = 0; i < 64; i++)
+	{
+		if (bitMaskTest & 1)
+		{
+			const Component& component = engine_.getComponent(i);
+			const size_t s = component.getSize();
+			componentLayouts.emplace_back(component.getBitMask(), s);
+			size += s;
+		}
+		bitMaskTest >>= 1;
+	}
+	archTypes_.emplace_back(index, bitMask, size, componentLayouts);
+	return index;
 }
 
-void Scene::addComponentToEntity(EntityHandle& entity, size_t component)
+EntityHandle& Scene::addEntity(std::string name)
 {
-	printf("got bitmask %zu\n", engine_.getComponentBitMask(component));
+	EntityHandle& entity = entityHandles_.alloc();
+	entity.entity = nullptr;
+	entity.archType = 0;
+	return entity;
+}
+
+void Scene::addComponentToEntity(EntityHandle& entity, size_t componentIndex)
+{
+	ArchType& arch = getArchType(entity.archType);
+
+	const Component c = engine_.getComponent(componentIndex);
+
+	const size_t componentBitMask = c.getBitMask();
+	const size_t newArchBitMask = arch.bitMask | componentBitMask;
+
+	auto it = std::find_if(arch.add.begin(), arch.add.end(), [&](const ArchTypeIndex& i) { return getArchType(i).bitMask == newArchBitMask; });
+
+	ArchTypeIndex targetIndex;
+
+	if (it == arch.add.end())
+	{
+		targetIndex = addArchType(newArchBitMask);
+		ArchType& newArch = getArchType(targetIndex);
+
+		// newArch.log();
+
+		// iterate siblings
+		for (const auto& index : arch.add)
+		{
+			ArchType& a = getArchType(index);
+			size_t checkBitMask = a.bitMask | newArchBitMask;
+			auto it = std::find_if(a.add.begin(), a.add.end(), [&](const ArchTypeIndex& i) { return getArchType(i).bitMask == checkBitMask; });
+			if (it != a.add.end()) // combo found!
+			{
+				const ArchTypeIndex i = *it;
+				ArchType& comboArch = getArchType(i);
+				newArch.add.emplace_back(i); // bind it
+				comboArch.remove.emplace_back(targetIndex);
+			}
+		}
+		getArchType(entity.archType).add.emplace_back(targetIndex);
+		newArch.remove.emplace_back(entity.archType);
+	}
+	else
+	{
+		targetIndex = *it;
+	}
+
+	ArchType& newArchType = getArchType(targetIndex);
+	entity.archType = targetIndex;
+	entity.entity = newArchType.alloc();
+}
+
+ArchType& Scene::getArchType(size_t index)
+{
+	return archTypes_[index];
+}
+
+ArchType& Scene::getRootArchType()
+{
+	return archTypes_[0];
 }

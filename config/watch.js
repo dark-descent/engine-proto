@@ -70,7 +70,7 @@ const runNodeGyp = () =>
 			{
 				"target_name": "addon",
 				"msvs_version": "2019",
-				"cflags_cc": ["-std=c++20", "-fexceptions", "-O2"],
+				"cflags_cc": ["-std=c++latest", "-fexceptions", "-O2"],
 				"win_delay_load_hook": os.platform() === "win32" ? "true" : "false",
 				"sources": files.filter(f => f.endsWith("cpp")),
 				"include_dirs": [
@@ -81,14 +81,14 @@ const runNodeGyp = () =>
 						"xcode_settings": {
 							'GCC_ENABLE_CPP_EXCEPTIONS': 'YES',
 							"CLANG_CXX_LIBRARY": "libc++",
-							"CLANG_CXX_LANGUAGE_STANDARD": "c++20",
+							"CLANG_CXX_LANGUAGE_STANDARD": "c++latest",
 							'MACOSX_DEPLOYMENT_TARGET': '10.14'
 						}
 					}],
 					['OS=="win"', {
 						"msvs_settings": {
 							"VCCLCompilerTool": {
-								"AdditionalOptions": ["-std:c++20", "/EHsc"],
+								"AdditionalOptions": ["-std:c++latest", "/EHsc"],
 								"Optimization": 2
 							},
 						},
