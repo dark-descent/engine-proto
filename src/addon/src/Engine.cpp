@@ -72,6 +72,23 @@ Engine::Engine(Config& config, ObjectBuilder& exports) :
 
 	initSubSystem(assetManager);
 	initSubSystem(sceneManager);
+
+	Scene& scene = sceneManager.addScene("Test", true);
+
+	auto& entityA = scene.addEntity();
+	auto& entityB = scene.addEntity();
+	auto& entityC = scene.addEntity();
+
+	scene.addComponentToEntity(entityA, transform);
+
+	scene.addComponentToEntity(entityB, transform);
+	scene.addComponentToEntity(entityB, rigidBody);
+
+	scene.addComponentToEntity(entityC, rigidBody);
+
+	Logger::log("EntityA.archType:", scene.getArchType(entityA.data.archType));
+	Logger::log("EntityB.archType:", scene.getArchType(entityB.data.archType));
+	Logger::log("EntityC.archType:", scene.getArchType(entityC.data.archType));
 }
 
 Engine::~Engine()

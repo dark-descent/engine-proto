@@ -3,21 +3,15 @@
 
 #include "ArchType.hpp"
 
-PACK(struct EntityHandleIndex
-{
-	int32_t buffer;
-	int32_t index;
-});
 
-struct EntityHandle
+struct Entity
 {
-	EntityHandleIndex index;
 	void* entity;
 	ArchTypeIndex archType;
 
-	EntityHandle(EntityHandleIndex index, void* entity, ArchTypeIndex archType) : index(index), entity(entity), archType(archType) { }
+	Entity(void* entity, ArchTypeIndex archType) : entity(entity), archType(archType) { }
 
-	EntityHandle& operator=(const EntityHandle& other)
+	Entity& operator=(const Entity& other)
 	{
 		entity = other.entity;
 		archType = other.archType;

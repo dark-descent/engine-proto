@@ -3,7 +3,7 @@
 #include "framework.hpp"
 #include "ArchType.hpp"
 #include "Entity.hpp"
-#include "allocators/EntityHandleAllocator.hpp"
+#include "allocators/HandleAllocator.hpp"
 
 class Engine;
 
@@ -15,7 +15,7 @@ private:
 	std::string path_;
 
 	std::vector<ArchType> archTypes_;
-	EntityHandleAllocator<1024> entityHandles_;
+	HandleAllocator<Entity, 1024> entityHandles_;
 
 	inline ArchTypeIndex addArchType(size_t bitMask);
 
@@ -27,9 +27,9 @@ public:
 	const std::string& name();
 	const std::string& path();
 
-	EntityHandle& addEntity(std::string name = "GameObject");
+	Handle<Entity>& addEntity(std::string name = "GameObject");
 
-	void addComponentToEntity(EntityHandle& entity, size_t component);
+	void addComponentToEntity(Handle<Entity>& entity, size_t component);
 
 	ArchType& getArchType(size_t index);
 	ArchType& getRootArchType();

@@ -52,17 +52,17 @@ ArchTypeIndex Scene::addArchType(size_t bitMask)
 	return index;
 }
 
-EntityHandle& Scene::addEntity(std::string name)
+Handle<Entity>& Scene::addEntity(std::string name)
 {
-	EntityHandle& entity = entityHandles_.alloc();
-	entity.entity = nullptr;
-	entity.archType = 0;
-	return entity;
+	Handle<Entity>& handle = entityHandles_.alloc();
+	handle.data.entity = nullptr;
+	handle.data.archType = 0;
+	return handle;
 }
 
-void Scene::addComponentToEntity(EntityHandle& entity, size_t componentIndex)
+void Scene::addComponentToEntity(Handle<Entity>& handle, size_t componentIndex)
 {
-	ArchType& arch = getArchType(entity.archType);
+	ArchType& arch = getArchType(handle.data.archType);
 
 	const Component c = engine_.getComponent(componentIndex);
 
@@ -79,10 +79,10 @@ void Scene::addComponentToEntity(EntityHandle& entity, size_t componentIndex)
 		targetIndex = addArchType(newArchBitMask);
 		ArchType& newArch = getArchType(targetIndex);
 
-		printf("add arch type from %zu -> %zu\n", entity.archType, targetIndex);
+		printf("add arch type from %zu -> %zu\n", handle.data.archType, targetIndex);
 
 		// iterate siblings
-		for (const auto& index : getArchType(entity.archType).add)
+		for (const auto& index : getArchType(handle.data.archType).add)
 		{
 			ArchType& a = getArchType(index);
 			size_t checkBitMask = a.bitMask | newArchBitMask;
@@ -95,8 +95,8 @@ void Scene::addComponentToEntity(EntityHandle& entity, size_t componentIndex)
 			}
 		}
 
-		getArchType(entity.archType).add.emplace_back(targetIndex);
-		newArch.remove.emplace_back(entity.archType);
+		getArchType(handle.data.archType).add.emplace_back(targetIndex);
+		newArch.remove.emplace_back(handle.data.archType);
 	}
 	else
 	{
@@ -104,8 +104,8 @@ void Scene::addComponentToEntity(EntityHandle& entity, size_t componentIndex)
 	}
 
 	ArchType& newArchType = getArchType(targetIndex);
-	entity.archType = targetIndex;
-	entity.entity = newArchType.alloc();
+	handle.data.archType = targetIndex;
+	handle.data.entity = newArchType.alloc();
 }
 
 ArchType& Scene::getArchType(size_t index)
