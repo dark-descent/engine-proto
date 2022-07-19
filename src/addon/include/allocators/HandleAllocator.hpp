@@ -32,7 +32,7 @@ class HandleAllocator
 
 	inline Handle<T>* allocBuffer()
 	{
-		return static_cast<Handle<T>*>(malloc(bufferSize()));
+		return static_cast<Handle<T>*>(aligned_malloc(0x10, bufferSize()));
 	}
 
 public:
@@ -66,9 +66,7 @@ public:
 		int32_t i = insertIndex_.index++;
 
 		Handle<T>* handle = &buffers_[bi][i];
-		printf("Set index :D\n");
 		handle->index = { bi, i };
-		printf("Index set ! :D\n");
 		if (insertIndex_.index >= bufferSize())
 		{
 			insertIndex_.index = 0;

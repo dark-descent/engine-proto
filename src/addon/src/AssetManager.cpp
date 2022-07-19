@@ -3,7 +3,7 @@
 
 void AssetManager::onInitialize(Config& config, ObjectBuilder& exports)
 {
-	printf("AssetManager initialized!\n");
+	engine.logger.info("AssetManager initialized!");
 }
 
 void AssetManager::onTerminate()

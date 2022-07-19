@@ -1,9 +1,9 @@
 #include "Engine.hpp"
 #include "components/Transform.hpp"
 #include "components/RigidBody.hpp"
+#include "components/BoxCollider.hpp"
 
 Engine* Engine::engine_ = nullptr;
-uint8_t Engine::componentBitMaskCounter_ = 1;
 
 void Engine::initialize(V8CallbackArgs args)
 {
@@ -41,7 +41,7 @@ void Engine::initialize(V8CallbackArgs args)
 		}
 		catch (std::runtime_error e)
 		{
-			printf("Exception: %s\n", e.what());
+			Logger::get("Test").error("Exception: ", e.what());
 			isolate->ThrowException(createString(isolate, e.what()));
 		}
 	}
@@ -59,10 +59,14 @@ Engine::Engine(Config& config, ObjectBuilder& exports) :
 	sceneManager(*this),
 	assetManager(*this),
 	subSystems_(),
+	logger(Logger::get("internal")),
 	game()
 {
-	const size_t transform = registerAndExposeComponent<Transform>(exports, "Transform");
-	const size_t rigidBody = registerAndExposeComponent<RigidBody>(exports, "RigidBody");
+	printf("init :D \n");
+	registerAndExposeComponent<Transform>(exports, "Transform");
+	registerAndExposeComponent<RigidBody>(exports, "RigidBody");
+	registerAndExposeComponent<BoxCollider>(exports, "BoxCollider");
+	registerAndExposeComponent<CircleCollider>(exports, "CircleCollider");
 
 	const auto initSubSystem = [&](SubSystem& subSystem)
 	{
@@ -75,20 +79,17 @@ Engine::Engine(Config& config, ObjectBuilder& exports) :
 
 	Scene& scene = sceneManager.addScene("Test", true);
 
-	auto& entityA = scene.addEntity();
-	auto& entityB = scene.addEntity();
-	auto& entityC = scene.addEntity();
+	// for (size_t i = 0; i < 100; i++)
+	// {
+	// 	auto& entityA = scene.addEntity();
+	// 	scene.addComponentToEntity(entityA, 0);
+	// }
 
-	scene.addComponentToEntity(entityA, transform);
+	// ArchType& arch = scene.getArchType(1);
 
-	scene.addComponentToEntity(entityB, transform);
-	scene.addComponentToEntity(entityB, rigidBody);
+	// Logger& logger = Logger::get("Test");
+	// logger.info("Helloa :D");
 
-	scene.addComponentToEntity(entityC, rigidBody);
-
-	Logger::log("EntityA.archType:", scene.getArchType(entityA.data.archType));
-	Logger::log("EntityB.archType:", scene.getArchType(entityB.data.archType));
-	Logger::log("EntityC.archType:", scene.getArchType(entityC.data.archType));
 }
 
 Engine::~Engine()

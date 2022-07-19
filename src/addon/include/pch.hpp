@@ -3,6 +3,7 @@
 #include <node.h>
 
 #include <array>
+#include <queue>
 #include <map>
 #include <unordered_map>
 #include <vector>
@@ -20,3 +21,7 @@
 #include <fstream>
 #include <stdlib.h>
 #include <format>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+// #include

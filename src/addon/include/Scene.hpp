@@ -17,7 +17,7 @@ private:
 	std::vector<ArchType> archTypes_;
 	HandleAllocator<Entity, 1024> entityHandles_;
 
-	inline ArchTypeIndex addArchType(size_t bitMask);
+	// inline ArchTypeIndex addArchType(size_t bitMask);
 
 public:
 	Scene(Engine& engine, std::string name, std::string path);

@@ -3,7 +3,7 @@
 
 void SceneManager::onInitialize(Config& config, ObjectBuilder& exports)
 {
-	printf("SceneManager initialized!\n");
+	engine.logger.info("SceneManager initialized!");
 	const std::vector<std::string>& names = engine.game.getSceneNames();
 
 	size_t i = 1;
@@ -11,7 +11,7 @@ void SceneManager::onInitialize(Config& config, ObjectBuilder& exports)
 	for (const auto& name : names)
 	{
 		std::string scenePath = createScenePath(i++);
-		std::cout << "Found scene " << name.c_str() << " with path scenes/" << scenePath.c_str() << std::endl;
+		engine.logger.info("Found scene ", name, " with path scenes/", scenePath);
 		const Hash h = Hasher::hash(name.c_str());
 		scenes_.emplace(h, Scene(engine, name, scenePath));
 	}

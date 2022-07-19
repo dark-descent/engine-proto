@@ -4,14 +4,6 @@
 
 using ComponentIndex = uint64_t;
 
-struct ComponentLayout
-{
-	size_t index;
-	size_t size;
-
-	// ComponentLayout(size_t index, size_t size) : index(index), size(size) {}
-};
-
 class Component
 {
 	size_t bitMask_;

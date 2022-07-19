@@ -6,11 +6,12 @@
 #include "AssetManager.hpp"
 #include "SceneManager.hpp"
 #include "Game.hpp"
+#include "Logger.hpp"
+
 class Engine
 {
 private:
 	static Engine* engine_;
-	static uint8_t componentBitMaskCounter_;
 
 public:
 	static void initialize(V8CallbackArgs args);
@@ -19,14 +20,16 @@ private:
 	static void destroy(void* data);
 
 	bool isInitialized_ = false;
-	
+
 	std::vector<Component> components_;
 	std::vector<SubSystem*> subSystems_;
 
 public:
 	AssetManager assetManager;
 	SceneManager sceneManager;
-	
+
+	Logger& logger;
+
 	Game game;
 
 private:
@@ -49,31 +52,31 @@ private:
 #ifdef _DEBUG
 		const Hash hash = Hasher::hash<T>();
 		const char* componentName = typeid(T).name();
-		
+
 		bool found = false;
-		for(const auto& item : componentNames_)
+		for (const auto& item : componentNames_)
 		{
-			if(item.first == hash)
+			if (item.first == hash)
 			{
 				found = true;
 				break;
 			}
 		}
-		
-		if(found)
+
+		if (found)
 		{
-			printf("Component %s is already registered!\n", name);
+			logger.warn("Component ", name, " is already registered!");
 		}
 		else
 		{
-			printf("Registering component %s at [ index: %zu, bitMask: %zu ]\n", name, index, bitMask);
+			logger.info("Registering component ", name, " at [ index: ", index, ", bitMask: ", bitMask, " ]");
 			componentNames_.push_back(std::make_pair(hash, componentName));
 		}
 #endif
-	
+
 		return index;
 	}
-	
+
 public:
 	const size_t getComponentSize(size_t index);
 	const size_t getComponentBitMask(size_t index);
