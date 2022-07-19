@@ -2,7 +2,7 @@
 
 #include "framework.hpp"
 
-class ArchAllocator
+class ArchComponentAllocator
 {
 	struct Index
 	{
@@ -23,7 +23,7 @@ class ArchAllocator
 	}
 
 public:
-	ArchAllocator(const size_t size, const size_t count) : size_(size), capacity_(count), bufferSize_(size * count), insertIndex_({ -1, 0 })
+	ArchComponentAllocator(const size_t size, const size_t count) : size_(size), capacity_(count), bufferSize_(size * count), insertIndex_({ -1, 0 })
 	{
 
 	}

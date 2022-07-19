@@ -4,7 +4,7 @@
 
 #include "Component.hpp"
 #include "Logger.hpp"
-#include "allocators/ArchAllocator.hpp"
+#include "allocators/ArchComponentAllocator.hpp"
 
 using ArchTypeIndex = size_t;
 
@@ -26,7 +26,7 @@ public:
 	std::vector<ArchTypeArm> remove;
 	std::vector<ArchTypeArm> add;
 	std::vector<uint16_t> componentOffsets;
-	ArchAllocator allocator_;
+	ArchComponentAllocator allocator_;
 
 	ArchType(ArchTypeIndex index, size_t bitMask, size_t size, std::vector<uint16_t>& offsets);
 
