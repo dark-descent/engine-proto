@@ -53,7 +53,12 @@ Logger& Logger::get(const char* name)
 		isInitialized = true;
 	}
 
-	std::string fileName = std::string(name == nullptr ? "" : name) + Logger::date();
+	std::string fileName;
+
+	if(name == nullptr)
+		fileName = Logger::date();
+	else
+		fileName = std::string(name) + "-" + Logger::date();
 
 	if (loggers_.find(fileName) == loggers_.end())
 	{
@@ -71,6 +76,7 @@ Logger& Logger::get(const char* name)
 			logFilePath = logPath_ / genName;
 
 			exists = std::filesystem::exists(logFilePath);
+			
 			if (exists)
 				version++;
 
