@@ -5,8 +5,11 @@
 #include "Component.hpp"
 #include "AssetManager.hpp"
 #include "SceneManager.hpp"
+#include "Renderer.hpp"
 #include "Game.hpp"
 #include "Logger.hpp"
+
+class System;
 
 class Engine
 {
@@ -24,9 +27,12 @@ private:
 	std::vector<ComponentInfo> components_;
 	std::vector<SubSystem*> subSystems_;
 
+	std::unordered_map<Hash, size_t> componentTypeMap_;
+
 public:
 	AssetManager assetManager;
 	SceneManager sceneManager;
+	Renderer renderer;
 
 	Logger& logger;
 
@@ -47,7 +53,9 @@ private:
 	{
 		const size_t index = components_.size();
 		const uint64_t bitMask = 1ULL << index;
+
 		components_.emplace_back(index, bitMask, sizeof(T));
+		componentTypeMap_.emplace(std::make_pair(Hasher::hash(typeid(T).name()), index));
 
 #ifdef _DEBUG
 		const Hash hash = Hasher::hash<T>();
@@ -81,4 +89,15 @@ public:
 	const size_t getComponentSize(size_t index);
 	const size_t getComponentBitMask(size_t index);
 	const ComponentInfo& getComponent(size_t index);
+
+	template<typename T>
+	const ComponentInfo& getComponent()
+	{
+		Hash h = Hasher::hash(typeid(T).name());
+		if(!componentTypeMap_.contains(h))
+			throw std::runtime_error("Could not get Component!");
+		return getComponent(componentTypeMap_.at(h));
+	}
+
+	void runSystem(System& system);
 };

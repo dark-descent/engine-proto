@@ -2,6 +2,7 @@
 #include "components/Transform.hpp"
 #include "components/RigidBody.hpp"
 #include "components/BoxCollider.hpp"
+#include "System.hpp"
 
 Engine* Engine::engine_ = nullptr;
 
@@ -56,8 +57,10 @@ void Engine::destroy(void* data)
 }
 
 Engine::Engine(Config& config, ObjectBuilder& exports) :
-	sceneManager(*this),
+	componentTypeMap_(),
 	assetManager(*this),
+	sceneManager(*this),
+	renderer(*this),
 	subSystems_(),
 	logger(Logger::get("internal")),
 	game()
@@ -77,6 +80,7 @@ Engine::Engine(Config& config, ObjectBuilder& exports) :
 
 	initSubSystem(assetManager);
 	initSubSystem(sceneManager);
+	initSubSystem(renderer);
 
 	Scene& scene = sceneManager.addScene("Test", true);
 
@@ -126,6 +130,8 @@ Engine::Engine(Config& config, ObjectBuilder& exports) :
 	RigidBody* rbB = entityB->getComponent<RigidBody>(rigidBody);
 	if (rbB != nullptr)
 		logger.info("got rigidbody B mass: ", rbB->mass);
+
+	renderer.render();
 }
 
 Engine::~Engine()
@@ -146,4 +152,13 @@ const size_t Engine::getComponentBitMask(size_t index)
 const ComponentInfo& Engine::getComponent(size_t index)
 {
 	return components_.at(index);
+}
+
+void Engine::runSystem(System& system)
+{
+	auto info = system.query();
+	Scene& scene = sceneManager.getActiveScene();
+	ArchGroup archTypes;
+	size_t count = scene.filterArchTypes(info.required, archTypes);
+	system.run(archTypes, count);
 }

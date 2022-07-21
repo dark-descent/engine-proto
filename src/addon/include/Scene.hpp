@@ -5,6 +5,7 @@
 #include "Entity.hpp"
 #include "allocators/HandleAllocator.hpp"
 #include "Component.hpp"
+#include "System.hpp"
 
 class Engine;
 
@@ -36,4 +37,6 @@ public:
 
 	Handle<Arch>& getArch(HandleIndex index);
 	Handle<Arch>* getArchPtr(HandleIndex index);
+
+	size_t filterArchTypes(size_t bitMask, ArchGroup& archTypes);
 };

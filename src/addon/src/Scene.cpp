@@ -232,3 +232,17 @@ Handle<Arch>* Scene::getArchPtr(HandleIndex index)
 {
 	return std::addressof(archHandles_.at(index));
 }
+
+size_t Scene::filterArchTypes(size_t bitMask, ArchGroup& archTypes)
+{
+	size_t count = 0;	
+	archHandles_.iterate([&](Handle<Arch>& arch, size_t i)
+	{
+		if ((arch->bitMask & bitMask) == bitMask)
+		{
+			archTypes.emplace_back(&arch.data);
+			count++;
+		}
+	});
+	return count;
+}
