@@ -1,16 +1,18 @@
 #include "Component.hpp"
 
-Component::Component(size_t bitMask, size_t size) : bitMask_(bitMask), size_(size) 
-{
-	
-}
+ComponentInfo::ComponentInfo(size_t index, size_t bitMask, size_t size) : index_(index), bitMask_(bitMask), size_(size) { }
 
-const size_t Component::getSize() const
-{ 
+const size_t ComponentInfo::getSize() const
+{
 	return size_;
 }
 
-const size_t Component::getBitMask() const
-{ 
+const size_t ComponentInfo::getBitMask() const
+{
 	return bitMask_;
+}
+
+const size_t ComponentInfo::getIndex() const
+{
+	return index_;
 }

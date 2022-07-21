@@ -1,9 +1,10 @@
 #pragma once
 
 #include "framework.hpp"
-#include "ArchType.hpp"
+#include "Arch.hpp"
 #include "Entity.hpp"
 #include "allocators/HandleAllocator.hpp"
+#include "Component.hpp"
 
 class Engine;
 
@@ -14,23 +15,25 @@ private:
 	std::string name_;
 	std::string path_;
 
-	std::vector<ArchType> archTypes_;
 	HandleAllocator<Entity, 1024> entityHandles_;
+	HandleAllocator<Arch, 128> archHandles_;
+	std::vector<std::vector<Handle<Arch>*>> archLevels_;
+	Handle<Arch> rootArch_;
 
-	// inline ArchTypeIndex addArchType(size_t bitMask);
+	inline Handle<Arch>& addArch(const size_t componentIndex, const size_t bitMask, const size_t size, const size_t level);
 
 public:
 	Scene(Engine& engine, std::string name, std::string path);
-	Scene(Scene&& other);
-	Scene(const Scene& other);
 
-	const std::string& name();
-	const std::string& path();
+	const char* name();
+	const char* path();
 
-	Handle<Entity>& addEntity(std::string name = "GameObject");
+	Handle<Entity>& addEntity(std::string& name);
+	Handle<Entity>& addEntity(const char* name = "Entity");
 
-	void addComponentToEntity(Handle<Entity>& entity, size_t component);
+	void* addComponentToEntity(Handle<Entity>& handle, const ComponentIndex& componentIndex, void* data);
+	void* addComponentToEntity(Handle<Entity>& handle, const ComponentInfo& component, void* data);
 
-	ArchType& getArchType(size_t index);
-	ArchType& getRootArchType();
+	Handle<Arch>& getArch(HandleIndex index);
+	Handle<Arch>* getArchPtr(HandleIndex index);
 };

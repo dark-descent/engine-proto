@@ -5,150 +5,230 @@ Scene::Scene(Engine& engine, std::string name, std::string path) :
 	engine_(engine),
 	name_(name),
 	path_(path),
-	archTypes_(),
-	entityHandles_()
-{
-	std::vector<uint16_t> offsets;
-	archTypes_.emplace_back(0, 0, 0, offsets);
-}
-
-Scene::Scene(Scene&& other) :
-	engine_(other.engine_),
-	name_(std::move(other.name_)),
-	path_(std::move(other.path_)),
-	archTypes_(std::move(other.archTypes_)),
-	entityHandles_(std::move(other.entityHandles_))
+	// archTypes_(),
+	entityHandles_(),
+	archHandles_(),
+	archLevels_(),
+	rootArch_(addArch(0, 0, 0, 0))
 {
 
 }
 
-const std::string& Scene::name()
+const char* Scene::name()
 {
-	return name_;
+	return name_.c_str();
 }
 
-const std::string& Scene::path()
+const char* Scene::path()
 {
-	return path_;
+	return path_.c_str();
 }
 
-// ArchTypeIndex Scene::addArchType(size_t bitMask)
-// {
-	// ArchTypeIndex index = archTypes_.size();
-	// size_t bitMaskTest = bitMask;
-	// std::vector<uint16_t> componentLayouts;
-	// size_t size = 0;
-
-	// for (size_t i = 0; i < 64; i++)
-	// {
-	// 	if (bitMaskTest & 1)
-	// 	{
-	// 		const Component& component = engine_.getComponent(i);
-	// 		componentLayouts.emplace_back(size);
-	// 		size += component.getSize();
-	// 	}
-	// 	bitMaskTest >>= 1;
-	// }
-
-	// archTypes_.emplace_back(index, bitMask, size, componentLayouts);
-
-	// return index;
-// }
-
-Handle<Entity>& Scene::addEntity(std::string name)
+Handle<Arch>& Scene::addArch(const size_t componentIndex, const size_t bitMask, const size_t size, const size_t level)
 {
+	engine_.logger.info("Create arch type ", bitMask, " with size ", size, " at level ", level);
+
+	Handle<Arch>& arch = archHandles_.alloc();
+	Handle<Arch>* archPtr = std::addressof(arch);
+
+	arch.data.bitMask = bitMask;
+	arch.data.size = size;
+	arch.data.allocator.reset(size);
+
+	for (size_t i = archLevels_.size(), l = level + 1; i < l; i++)
+		archLevels_.emplace_back();
+
+	// add the arch level 
+	archLevels_[level].emplace_back(std::addressof(arch));
+
+	if (bitMask == 0)
+	{
+		arch.data.offsets.emplace_back(0);
+	}
+	else if (level != 0)
+	{
+		// set offsets
+		size_t bitMaskTest = bitMask;
+		size_t componentCount = 0;
+		size_t offsetCounter = 0;
+
+		arch.data.offsets.emplace_back(0);
+
+		for (size_t i = 0; i < 64; i++)
+		{
+			if (bitMaskTest & 1)
+			{
+				auto c = engine_.getComponent(i);
+				componentCount++;
+				offsetCounter += c.getSize();
+				arch.data.offsets.emplace_back(offsetCounter);
+				if (componentCount >= level)
+					break;
+			}
+
+			bitMaskTest >>= 1;
+		}
+	}
+
+	engine_.logger.info("arch offsets: ", arch.data.offsets.size());
+
+	const size_t componentBitMask = 1ULL << componentIndex;
+
+	if (level > 1)
+	{
+		auto& v = archLevels_[level - 1];
+		for (auto& removeArch : v) // set remove arms
+		{
+			if ((bitMask & removeArch->data.bitMask) == removeArch->data.bitMask)
+			{
+				// printf("got remove arm: bitMask %zu\n", removeArch->data.bitMask);
+				size_t offset = removeArch->data.getOffsetIndex(bitMask);
+				removeArch->data.add.emplace_back(archPtr, offset);
+				arch.data.remove.emplace_back(removeArch, offset);
+			}
+		}
+	}
+	else if (level == 1)
+	{
+		// printf("add root arch refs\n");
+		rootArch_.data.add.emplace_back(archPtr, 0);
+		arch.data.remove.emplace_back(std::addressof(rootArch_), 0);
+	}
+
+	if (level + 1 < archLevels_.size())
+	{
+		auto& v = archLevels_[level + 1];
+
+		for (auto& addArch : v) // set add arms
+		{
+			if ((addArch->data.bitMask & bitMask) == bitMask)
+			{
+				// printf("got add arm: bitMask %zu\n", addArch->data.bitMask);
+				size_t offset = arch.data.getOffsetIndex(addArch->data.bitMask);
+				addArch->data.remove.emplace_back(archPtr, offset);
+				arch.data.add.emplace_back(addArch, offset);
+			}
+		}
+	}
+
+	return arch;
+}
+
+Handle<Entity>& Scene::addEntity(std::string& name)
+{
+	engine_.logger.info("Added entity with name ", name);
 	Handle<Entity>& handle = entityHandles_.alloc();
 	handle.data.entity = nullptr;
-	handle.data.archType = 0;
+	handle.data.arch = std::addressof(rootArch_);
 	return handle;
 }
 
-void Scene::addComponentToEntity(Handle<Entity>& handle, size_t componentIndex)
+Handle<Entity>& Scene::addEntity(const char* name)
 {
-	const ArchTypeIndex oldArchIndex = handle.data.archType;
-	ArchType& arch = getArchType(handle.data.archType);
+	std::string entityName(name);
+	return addEntity(entityName);
+}
 
-	const Component component = engine_.getComponent(componentIndex);
+void* Scene::addComponentToEntity(Handle<Entity>& handle, const ComponentIndex& componentIndex, void* data)
+{
+	const ComponentInfo& component = engine_.getComponent(componentIndex);
+	return addComponentToEntity(handle, component, data);
+}
+
+void* Scene::addComponentToEntity(Handle<Entity>& handle, const ComponentInfo& component, void* data)
+{
+	size_t componentIndex = component.getIndex();
+
+	if (handle.data.arch == nullptr)
+		throw std::runtime_error("Arch = nullptr!");
+
+	Arch& from = handle.data.arch->data;
+
 	const size_t componentBitMask = component.getBitMask();
-	const size_t componentSize = component.getSize();
-	const size_t newArchBitMask = arch.bitMask | componentBitMask;
+	const size_t newBitMask = componentBitMask | from.bitMask;
 
-	auto it = std::find_if(arch.add.begin(), arch.add.end(), [&](ArchTypeArm& arm) { return getArchType(arm.index).bitMask == newArchBitMask; });
+	engine_.logger.info("Add component (bitmask: ", component.getBitMask(), ") to arch (bitmask: ", from.bitMask, ") (add-arm size: ", from.add.size(), ")");
 
-	size_t newArchIndex;
-	int16_t splitIndex = 0;
-
-	if (it == arch.add.end()) // arch type does not exists yet!
+	int armIndex = -1;
+	int armCounter = 0;
+	for (auto& a : from.add)
 	{
-		// printf("add new arch type from %zu to %zu\n", arch.bitMask, newArchBitMask);
-
-		if (arch.componentOffsets.size() == 0) // from rootArch nothing to copy :D
+		Handle<Arch>* handle = a.arch;
+		if (handle->data.bitMask == newBitMask)
 		{
-			newArchIndex = archTypes_.size();
-			std::vector<uint16_t> offsets;
-			offsets.emplace_back(0);
-			arch.add.emplace_back(newArchIndex, 0);
-			archTypes_.emplace_back(newArchIndex, newArchBitMask, componentSize, offsets);
+			armIndex = armCounter;
+			break;
 		}
-		else
-		{
-			splitIndex = arch.getSplitIndex(newArchBitMask, componentIndex);
+		armCounter++;
+	}
 
-			// create offsets for the new arch
-			std::vector<uint16_t> offsets;
+	size_t offsetIndex = 0;
+	Handle<Arch>* newArch = nullptr;
 
-			for (size_t i = 0, l = arch.componentOffsets.size(); i < l; i++)
-			{
-				// printf("add offset %zu\n", i);
-				if (i == splitIndex)
-					offsets.emplace_back(arch.componentOffsets[i]);
-
-				if (i >= splitIndex)
-					offsets.emplace_back(componentSize + arch.componentOffsets[i]);
-				else
-					offsets.emplace_back(arch.componentOffsets[i]);
-			}
-
-			newArchIndex = archTypes_.size();
-			arch.add.emplace_back(newArchIndex, splitIndex);
-			archTypes_.emplace_back(newArchIndex, newArchBitMask, componentSize, offsets);
-			
-	
-		}
-		// check sibling combos
-		ArchType& newArch = getArchType(newArchIndex);
-		newArch.remove.emplace_back(oldArchIndex, splitIndex);
+	if (armIndex == -1)
+	{
+		Handle<Arch>& a = addArch(componentIndex, newBitMask, from.size + component.getSize(), from.getComponentCount() + 1);
+		offsetIndex = from.getOffsetIndex(newBitMask);
+		newArch = std::addressof(a);
 	}
 	else
 	{
-		splitIndex = (*it).offset;
-		newArchIndex = (*it).index;
-		// printf("found arch %zu and split index %zu\n", newArchIndex, splitIndex);
+		auto& archArm = from.add.at(armIndex);
+		newArch = archArm.arch;
+		offsetIndex = archArm.offsetIndex;
 	}
 
-	ArchType& oldArch = getArchType(oldArchIndex);
-	ArchType& newArch = getArchType(newArchIndex);
+	// update the new arch type
+	engine_.logger.info("updated entity arch type archIndex: ", newArch->index.index);
+	handle.data.arch = newArch;
 
+	const size_t componentOffset = from.offsets[offsetIndex];
+	const size_t componentSize = component.getSize();
+	const size_t lastOffset = from.offsets[from.offsets.size() - 1];
 
-	handle.data.archType = newArchIndex;
-	handle.data.entity = newArch.alloc();
+	char* oldPtr = handle.data.entity;
 
-	if (oldArch.componentOffsets.size() != 0)
+	handle.data.index = newArch->data.allocator.alloc();
+	handle.data.entity = newArch->data.allocator.at(handle.data.index);
+
+	if (from.bitMask != 0)
 	{
-		size_t splitOffset = oldArch.componentOffsets[splitIndex];
-		// printf("copy data %zu - %zu\n", splitOffset, componentSize);
-		// printf("copy data %zu - %zu\n", componentSize, splitOffset + componentSize);
-		// printf("copy data %zu - %zu\n", splitOffset + componentSize, newArch.size);
-		
+		if (componentOffset == 0)
+		{
+			printf("copy as start\n");
+			if (data != nullptr)
+				memcpy(handle.data.entity, data, componentSize);
+			memcpy(handle.data.entity + componentSize, oldPtr, from.size);
+			return handle.data.entity;
+		}
+		else if (componentOffset == lastOffset)
+		{
+			printf("copy as last\n");
+			memcpy(handle.data.entity, oldPtr, from.size);
+			if (data != nullptr)
+				memcpy(handle.data.entity + from.size, data, componentSize);
+			return handle.data.entity + from.size;
+		}
+		else
+		{
+			printf("copy center %zu\n", componentOffset);
+			memcpy(handle.data.entity, oldPtr, componentOffset);
+			if (data != nullptr)
+				memcpy(handle.data.entity + componentOffset, data, componentSize);
+			memcpy(handle.data.entity + componentSize + componentOffset, oldPtr + componentOffset, from.size - componentOffset);
+			return handle.data.entity + componentOffset;
+		}
 	}
+
+	return nullptr;
 }
 
-ArchType& Scene::getArchType(size_t index)
+Handle<Arch>& Scene::getArch(HandleIndex index)
 {
-	return archTypes_[index];
+	return archHandles_.at(index);
 }
 
-ArchType& Scene::getRootArchType()
+Handle<Arch>* Scene::getArchPtr(HandleIndex index)
 {
-	return archTypes_[0];
+	return std::addressof(archHandles_.at(index));
 }

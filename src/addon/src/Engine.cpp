@@ -63,13 +63,14 @@ Engine::Engine(Config& config, ObjectBuilder& exports) :
 	game()
 {
 	printf("init :D \n");
-	registerAndExposeComponent<Transform>(exports, "Transform");
-	registerAndExposeComponent<RigidBody>(exports, "RigidBody");
-	registerAndExposeComponent<BoxCollider>(exports, "BoxCollider");
-	registerAndExposeComponent<CircleCollider>(exports, "CircleCollider");
+	auto transform = registerAndExposeComponent<Transform>(exports, "Transform");
+	auto rigidBody = registerAndExposeComponent<RigidBody>(exports, "RigidBody");
+	auto boxCollider = registerAndExposeComponent<BoxCollider>(exports, "BoxCollider");
+	auto circleCollider = registerAndExposeComponent<CircleCollider>(exports, "CircleCollider");
 
 	const auto initSubSystem = [&](SubSystem& subSystem)
 	{
+
 		subSystem.initialize(config, exports);
 		subSystems_.push_back(&subSystem);
 	};
@@ -79,17 +80,52 @@ Engine::Engine(Config& config, ObjectBuilder& exports) :
 
 	Scene& scene = sceneManager.addScene("Test", true);
 
-	// for (size_t i = 0; i < 100; i++)
-	// {
-	// 	auto& entityA = scene.addEntity();
-	// 	scene.addComponentToEntity(entityA, 0);
-	// }
+	auto& entityA = scene.addEntity();
+	auto& entityB = scene.addEntity();
+	auto& entityC = scene.addEntity();
+	auto& entityD = scene.addEntity();
 
-	// ArchType& arch = scene.getArchType(1);
+	auto pl = []() { printf("------------------------------------------------\n"); };
 
-	// Logger& logger = Logger::get("Test");
-	// logger.info("Helloa :D");
+	pl();
 
+	Transform t;
+	t.position.x = 1.0f;
+	t.position.y = 1.0f;
+	t.rotation.x = 1.0f;
+	t.rotation.y = 1.0f;
+	t.scale.x = 1.0f;
+	t.scale.y = 1.0f;
+
+	RigidBody rb;
+	rb.mass = 123.0f;
+	rb.velocity.x = 0.0f;
+	rb.velocity.y = -0.98f;
+
+	BoxCollider bc;
+	bc.scale.x = 1.0f;
+	bc.scale.y = 1.0f;
+
+	scene.addComponentToEntity(entityA, transform, &t);
+	scene.addComponentToEntity(entityA, rigidBody, &rb);
+	scene.addComponentToEntity(entityA, boxCollider, &bc);
+
+	pl();
+	rb.mass = 1337.070819f;
+
+	scene.addComponentToEntity(entityB, boxCollider, &bc);
+	scene.addComponentToEntity(entityB, transform, &t);
+	scene.addComponentToEntity(entityB, rigidBody, &rb);
+
+	pl();
+
+	RigidBody* rbA = entityA->getComponent<RigidBody>(rigidBody);
+	if (rbA != nullptr)
+		logger.info("got rigidbody A mass: ", rbA->mass);
+
+	RigidBody* rbB = entityB->getComponent<RigidBody>(rigidBody);
+	if (rbB != nullptr)
+		logger.info("got rigidbody B mass: ", rbB->mass);
 }
 
 Engine::~Engine()
@@ -107,7 +143,7 @@ const size_t Engine::getComponentBitMask(size_t index)
 	return components_.at(index).getBitMask();
 }
 
-const Component& Engine::getComponent(size_t index)
+const ComponentInfo& Engine::getComponent(size_t index)
 {
 	return components_.at(index);
 }

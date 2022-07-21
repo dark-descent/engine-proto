@@ -19,6 +19,11 @@ struct Handle
 	{
 		return data;
 	}
+
+	T* operator->()
+	{ 
+		return &data; 
+	}
 };
 
 template<typename T, size_t Count = 1024>
@@ -32,26 +37,61 @@ class HandleAllocator
 
 	inline Handle<T>* allocBuffer()
 	{
-		return static_cast<Handle<T>*>(aligned_malloc(0x10, bufferSize()));
+		Handle<T>* ptr = static_cast<Handle<T>*>(aligned_malloc(0x10, bufferSize()));
+		memset(ptr, 0, bufferSize());
+		return ptr;
 	}
 
 public:
 	size_t size()
 	{
-		return (insertIndex_.buffer * Count) + insertIndex_.index;
+		return ((insertIndex_.buffer * Count) + insertIndex_.index) - freeIndices_.size();
 	}
 
 
-	HandleAllocator() : insertIndex_({ -1, 0 }), buffers_(), freeIndices_()
-	{
+	HandleAllocator() : insertIndex_({ -1, 0 }), buffers_(), freeIndices_() {  }
 
+	HandleAllocator(HandleAllocator&& other)
+	{
+		insertIndex_ = std::move(other.insertIndex_);
+		buffers_ = std::move(other.buffers_);
+		freeIndices_ = std::move(other.freeIndices_);
+	}
+
+	HandleAllocator(const HandleAllocator& other)
+	{
+		insertIndex_ = other.insertIndex_;
+		buffers_ = other.buffers_;
+		freeIndices_ = other.freeIndices_;
+	}
+
+	~HandleAllocator()
+	{
+		clear();
+	}
+
+	void clear()
+	{
+		for (auto& ptr : buffers_)
+			aligned_free(ptr);
+		insertIndex_= { -1, 0 };
+	}
+	
+	Handle<T>& at(size_t bufferIndex, size_t index)
+	{
+		return buffers_[bufferIndex][index];
+	}
+	
+	Handle<T>& at(HandleIndex index)
+	{
+		return at(index.buffer, index.index);
 	}
 
 	Handle<T>& at(size_t index)
 	{
 		const size_t bi = index / bufferSize();
 		const size_t i = index % bufferSize();
-		return buffers_[bi][i];
+		return at(bi, i);
 	}
 
 	Handle<T>& alloc()
@@ -101,5 +141,29 @@ public:
 			freeIndices_.push(handle.index);
 
 		handle.index = { -1, 0 };
+	}
+
+	template<typename Callback>
+	void iterate(Callback callback)
+	{
+		const size_t count = size();
+		size_t counter = 0;
+		for(Handle<T>* buffer : buffers_)
+		{
+			for(size_t i = 0; i < Count; i++)
+			{
+				Handle<T>& handle = buffer[i];
+				if(handle.index.buffer != -1)
+				{
+					callback(handle, counter++);
+					if(counter >= count)
+						goto exitLoop;
+				}		
+				
+			}
+		}
+
+		exitLoop:
+			return;
 	}
 };

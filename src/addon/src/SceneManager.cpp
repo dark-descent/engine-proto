@@ -3,6 +3,9 @@
 
 void SceneManager::onInitialize(Config& config, ObjectBuilder& exports)
 {
+	scenesIndices_.reserve(sceneBufferSize);
+	scenes_.reserve(sceneBufferSize);
+
 	engine.logger.info("SceneManager initialized!");
 	const std::vector<std::string>& names = engine.game.getSceneNames();
 
@@ -12,8 +15,7 @@ void SceneManager::onInitialize(Config& config, ObjectBuilder& exports)
 	{
 		std::string scenePath = createScenePath(i++);
 		engine.logger.info("Found scene ", name, " with path scenes/", scenePath);
-		const Hash h = Hasher::hash(name.c_str());
-		scenes_.emplace(h, Scene(engine, name, scenePath));
+		addScene(name, scenePath);
 	}
 }
 
@@ -24,10 +26,10 @@ void SceneManager::onTerminate()
 
 Scene& SceneManager::loadScene(const Hash hash)
 {
-	if (!scenes_.contains(hash))
+	if (!scenesIndices_.contains(hash))
 		throw std::runtime_error("Could not load scene!");
 
-	Scene& scene = scenes_.at(hash);
+	Scene& scene = getScene(hash);
 
 	std::filesystem::path scenesPath = std::filesystem::path(engine.game.getGameDir()) / "scenes" / scene.path();
 
@@ -43,19 +45,48 @@ Scene& SceneManager::loadScene(const Hash hash)
 
 Scene& SceneManager::addScene(std::string name, bool load)
 {
+	return addScene(name, createScenePath(scenes_.size() + 1), load);
+}
+
+Scene& SceneManager::addScene(std::string name, std::string path, bool load)
+{
 	Hash h = Hasher::hash(name.c_str());
-	if (scenes_.contains(h))
+	
+	if (scenesIndices_.contains(h))
 		throw std::runtime_error("Scene already exists!");
-	scenes_.emplace(std::make_pair(h, Scene(engine, name, createScenePath(scenes_.size() + 1))));
+	
+	size_t newSize = scenes_.size();
+	
+	if ((newSize + 1) % sceneBufferSize == 0)
+	{
+		engine.logger.info("Increase scenes buffer");
+		scenesIndices_.reserve(sceneBufferSize);
+		scenes_.reserve(sceneBufferSize);
+	}
+
+	scenesIndices_.emplace(h, newSize);
+	
+	Scene& scene = scenes_.emplace_back(engine, name, path);
+	
 	if (load)
-		activeScene_ = std::addressof(scenes_.at(h));
+		activeScene_ = std::addressof(scene);
+	
 	return *activeScene_;
 }
 
 Scene& SceneManager::getActiveScene()
 {
-	if(activeScene_ == nullptr)
+	if (activeScene_ == nullptr)
 		throw std::runtime_error("No scenes are loaded yet!");
 
 	return *activeScene_;
+}
+
+
+Scene& SceneManager::getScene(const Hash hash)
+{
+	if (scenesIndices_.contains(hash))
+		return scenes_.at(scenesIndices_.at(hash));
+
+	throw std::runtime_error("Could not get scene!");
 }

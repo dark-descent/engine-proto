@@ -4,14 +4,16 @@
 
 using ComponentIndex = uint64_t;
 
-class Component
+class ComponentInfo
 {
+	ComponentIndex index_;
 	size_t bitMask_;
 	size_t size_;
 
 public:
-	Component(size_t bitMask, size_t size);
+	ComponentInfo(ComponentIndex index, size_t bitMask, size_t size);
 
+	const ComponentIndex getIndex() const;
 	const size_t getSize() const;
 	const size_t getBitMask() const;
 };

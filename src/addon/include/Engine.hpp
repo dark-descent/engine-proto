@@ -21,7 +21,7 @@ private:
 
 	bool isInitialized_ = false;
 
-	std::vector<Component> components_;
+	std::vector<ComponentInfo> components_;
 	std::vector<SubSystem*> subSystems_;
 
 public:
@@ -47,7 +47,7 @@ private:
 	{
 		const size_t index = components_.size();
 		const uint64_t bitMask = 1ULL << index;
-		components_.emplace_back(bitMask, sizeof(T));
+		components_.emplace_back(index, bitMask, sizeof(T));
 
 #ifdef _DEBUG
 		const Hash hash = Hasher::hash<T>();
@@ -80,5 +80,5 @@ private:
 public:
 	const size_t getComponentSize(size_t index);
 	const size_t getComponentBitMask(size_t index);
-	const Component& getComponent(size_t index);
+	const ComponentInfo& getComponent(size_t index);
 };
