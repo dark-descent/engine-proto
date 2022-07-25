@@ -13,11 +13,41 @@ export class Engine
 	private static get defaultConfig(): Required<EngineOptionalConfig>
 	{
 		return {
-			logHandler: Engine.defaultLogHandler
+			logHandler: Engine.defaultLogHandler,
+			workerThreads: 3
 		};
 	};
 
-	public static readonly initialize = (config: EngineConfig) => 
+	private static readonly initWorkers = async (count: number) =>
+	{
+		const workers: Worker[] = [];
+		const promises: Promise<void>[] = [];
+
+		for (let i = 0; i < count; i++)
+		{
+			const worker = new Worker(new URL('./worker.ts', import.meta.url));
+			workers.push(worker);
+			promises.push(new Promise<void>((res) =>
+			{
+				const initListener = (e: MessageEvent<any>) => 
+				{
+					if (e.data.msg === "initialized")
+					{
+						worker.removeEventListener("message", initListener);
+						res();
+					}
+				}
+
+				worker.addEventListener("message", initListener);
+			}));
+		}
+
+		await Promise.all(promises);
+
+		return workers;
+	}
+
+	public static readonly initialize = async (config: EngineConfig) => 
 	{
 		if (this._instance)
 			throw new Error(`Engine is already initialized!`);
@@ -26,7 +56,7 @@ export class Engine
 
 		const internalEngine = Addon.module.initialize(conf);
 
-		return new Engine(internalEngine, conf);
+		return new Engine(internalEngine, conf, await this.initWorkers(conf.workerThreads));
 	};
 
 	public static get()
@@ -37,18 +67,22 @@ export class Engine
 
 	private readonly _config: Readonly<EngineConfig>;
 
+	private readonly _workers: ReadonlyArray<Worker>;
+
 	public readonly systems: Readonly<EngineSystems>;
 
-	private constructor(systems: EngineSystems, config: Required<EngineConfig>)
+	private constructor(systems: EngineSystems, config: Required<EngineConfig>, workers: ReadonlyArray<Worker>)
 	{
 		this.systems = systems;
 		this._config = config;
+		this._workers = workers;
 	}
 }
 
 export type EngineConfig = {
 	gameName: string;
 	logHandler?: LogCallback;
+	workerThreads?: number;
 };
 
 export type KeysOfType<T, U> = { [K in keyof T]: T[K] extends U ? K : never }[keyof T];

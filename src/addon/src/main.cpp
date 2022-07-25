@@ -9,4 +9,5 @@ NODE_MODULE_INIT()
 	Isolate* isolate = context->GetIsolate();
 
 	exports->Set(context, createString(isolate, "initialize"), createFunction(isolate, Engine::initialize));
+	exports->Set(context, createString(isolate, "initializeWorker"), createFunction(isolate, Engine::initializeWorker));
 }

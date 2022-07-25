@@ -48,6 +48,36 @@ void Engine::initialize(V8CallbackArgs args)
 	}
 }
 
+void Engine::initializeWorker(V8CallbackArgs args)
+{
+	using namespace v8;
+
+	Isolate* isolate = args.GetIsolate();
+
+	if (engine_ == nullptr)
+	{
+		isolate->ThrowException(createString(isolate, "Engine is not initialized yet!"));
+	}
+	else
+	{
+		try
+		{
+			ObjectBuilder exports(isolate);
+			
+			// node::AddEnvironmentCleanupHook(isolate, Engine::destroy, isolate);
+
+			// engine_ = new Engine(config, exports);
+
+			args.GetReturnValue().SetUndefined();
+		}
+		catch (std::runtime_error e)
+		{
+			// Logger::get("Test").error("Exception: ", e.what());
+			// isolate->ThrowException(createString(isolate, e.what()));
+		}
+	}
+}
+
 void Engine::destroy(void* data)
 {
 	delete Engine::engine_;

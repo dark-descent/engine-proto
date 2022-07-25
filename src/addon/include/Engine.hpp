@@ -18,6 +18,7 @@ private:
 
 public:
 	static void initialize(V8CallbackArgs args);
+	static void initializeWorker(V8CallbackArgs args);
 
 private:
 	static void destroy(void* data);

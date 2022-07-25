@@ -5,7 +5,6 @@ Scene::Scene(Engine& engine, std::string name, std::string path) :
 	engine_(engine),
 	name_(name),
 	path_(path),
-	// archTypes_(),
 	entityHandles_(),
 	archHandles_(),
 	archLevels_(),
