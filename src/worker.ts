@@ -1,4 +1,4 @@
-import { Addon, EngineSystems } from "./Addon";
+import { Addon } from "./Addon";
 
 self.onmessage = ({ data }) =>
 {

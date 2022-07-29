@@ -53,20 +53,33 @@ inline v8::Local<v8::SharedArrayBuffer> createSharedArrayBuffer(v8::Isolate* iso
 	return v8::SharedArrayBuffer::New(isolate, std::move(backingStore));
 }
 
+inline v8::Local<v8::Array> createArray(v8::Isolate* isolate, size_t length = 0)
+{
+	return v8::Array::New(isolate, length);
+}
+
 inline void throwException(v8::Isolate* isolate, const char* exception)
 {
 	isolate->ThrowException(createString(isolate, exception));
 }
 
 struct ObjectBuilder;
+struct ArrayBuilder;
 
 template<typename ConstructCallback>
 inline v8::Local<v8::Object> createObject(v8::Isolate* isolate, ConstructCallback callback)
 {
-	v8::Local<v8::Object> obj = v8::Object::New(isolate);
-	ObjectBuilder builder(isolate, obj);
+	ObjectBuilder builder(isolate);
 	callback(builder);
-	return obj;
+	return builder.build();
+}
+
+template<typename FillCallback>
+inline v8::Local<v8::Array> createArray(v8::Isolate* isolate, FillCallback callback)
+{
+	ArrayBuilder builder(isolate);
+	callback(builder);
+	return builder.build();
 }
 
 struct ObjectBuilder
@@ -89,6 +102,9 @@ public:
 	template<typename T>
 	void set(const char* key, T number) { this->obj_->Set(this->ctx_, createString(this->isolate_, key), createNumber(this->isolate_, number)); }
 
+	template<typename FillCallback>
+	void setArray(const char* key, FillCallback callback = [](v8::Local<v8::Array>&){}) { this->obj_->Set(this->ctx_, createString(this->isolate_, key), createArray(isolate_, callback)); }
+
 	void setFunction(const char* key, v8::FunctionCallback callback) { this->obj_->Set(this->ctx_, createString(this->isolate_, key), createFunction(this->isolate_, callback)); }
 
 	template<typename T>
@@ -100,5 +116,40 @@ public:
 	v8::Local<v8::Object> build()
 	{
 		return obj_;
+	}
+};
+
+
+struct ArrayBuilder
+{
+private:
+	v8::Isolate* isolate_;
+	v8::Local<v8::Context> ctx_;
+	v8::Local<v8::Array> arr_;
+	size_t pushIndex = 0;
+
+public:
+	ArrayBuilder(v8::Isolate* isolate) : isolate_(isolate), ctx_(isolate->GetCurrentContext()), arr_(v8::Array::New(isolate)) { }
+	ArrayBuilder(v8::Isolate* isolate, v8::Local<v8::Array> obj) : isolate_(isolate), ctx_(isolate->GetCurrentContext()), arr_(obj) { }
+
+	void push(const char* string) { arr_->Set(ctx_, pushIndex++, createString(isolate_, string)); }
+	void push(bool boolean) { arr_->Set(ctx_, pushIndex++, v8::Boolean::New(isolate_, boolean)); }
+	template<typename T>
+	void push(T number) { arr_->Set(ctx_, pushIndex++, createNumber(isolate_, number)); }
+	
+	template<typename FillCallback>
+	void pushArray(FillCallback callback = [](v8::Local<v8::Array>&){}) { this->arr_->Set(this->ctx_, pushIndex++, createArray(isolate_, callback)); }
+
+	void pushFunction(v8::FunctionCallback callback) { this->arr_->Set(this->ctx_, pushIndex++, createFunction(this->isolate_, callback)); }
+
+	template<typename T>
+	void pushFunction(v8::FunctionCallback callback, T* data) { this->arr_->Set(this->ctx_, pushIndex++, createFunction(this->isolate_, callback, data)); }
+
+	template<typename ConstructCallback>
+	void pushObject(ConstructCallback callback) { this->arr_->Set(this->ctx_, pushIndex++, createObject(this->isolate_, callback)); }
+
+	v8::Local<v8::Array> build()
+	{
+		return arr_;
 	}
 };

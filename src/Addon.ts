@@ -1,5 +1,4 @@
 import type { EngineConfig } from "./Engine";
-import { IRenderer } from "./System";
 
 const isWorker = !("window" in self && "document" in self);
 
@@ -9,12 +8,17 @@ export namespace Addon
 }
 
 type AddonModule = {
-	initialize: (config: Required<EngineConfig>) => EngineSystems;
+	initialize: (config: Required<EngineConfig>) => AddonEngine;
 	initializeWorker: () => EngineWorkerSystem;
 };
 
-export type EngineSystems = {
-	Renderer: IRenderer;
+export type AddonEngine = {
+	components: ComponentInfo[];
+};
+
+type ComponentInfo = {
+	name: string;
+	index: number;
 };
 
 export type EngineWorkerSystem = {

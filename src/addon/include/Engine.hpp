@@ -30,6 +30,8 @@ private:
 
 	std::unordered_map<Hash, size_t> componentTypeMap_;
 
+	v8::Isolate* isolate_;
+
 public:
 	AssetManager assetManager;
 	SceneManager sceneManager;
@@ -39,18 +41,21 @@ public:
 
 	Game game;
 
+	v8::Isolate* getIsolate();
+	v8::Local<v8::Context> getContext();
+
 private:
 #ifdef _DEBUG
 	std::vector<std::pair<Hash, std::string>> componentNames_;
 #endif
 
-	Engine(Config& config, ObjectBuilder& exports);
+	Engine(v8::Isolate* isolate, Config& config, ObjectBuilder& exports);
 	~Engine();
 	Engine(const Engine&) = delete;
 	Engine(Engine&&) = delete;
 
 	template<typename T>
-	size_t registerAndExposeComponent(ObjectBuilder& exports, const char* name)
+	size_t registerAndExposeComponent(ArrayBuilder& exports, const char* name)
 	{
 		const size_t index = components_.size();
 		const uint64_t bitMask = 1ULL << index;
@@ -82,6 +87,11 @@ private:
 			componentNames_.push_back(std::make_pair(hash, componentName));
 		}
 #endif
+		exports.pushObject([&](ObjectBuilder& obj)
+		{
+			obj.set("name", name);
+			obj.set("index", index);
+		});
 
 		return index;
 	}

@@ -36,9 +36,10 @@ void Engine::initialize(V8CallbackArgs args)
 
 			node::AddEnvironmentCleanupHook(isolate, Engine::destroy, isolate);
 
-			engine_ = new Engine(config, exports);
+			engine_ = new Engine(isolate, config, exports);
 
 			args.GetReturnValue().Set(exports.build());
+
 		}
 		catch (std::runtime_error e)
 		{
@@ -63,7 +64,7 @@ void Engine::initializeWorker(V8CallbackArgs args)
 		try
 		{
 			ObjectBuilder exports(isolate);
-			
+
 			// node::AddEnvironmentCleanupHook(isolate, Engine::destroy, isolate);
 
 			// engine_ = new Engine(config, exports);
@@ -86,24 +87,38 @@ void Engine::destroy(void* data)
 	node::RemoveEnvironmentCleanupHook(isolate, Engine::destroy, isolate);
 }
 
-Engine::Engine(Config& config, ObjectBuilder& exports) :
+v8::Isolate* Engine::getIsolate()
+{
+	return isolate_;
+}
+
+v8::Local<v8::Context> Engine::getContext()
+{
+	return isolate_->GetCurrentContext();
+}
+
+Engine::Engine(v8::Isolate* isolate, Config& config, ObjectBuilder& exports) :
 	componentTypeMap_(),
 	assetManager(*this),
 	sceneManager(*this),
 	renderer(*this),
 	subSystems_(),
+	isolate_(isolate),
 	logger(Logger::get("internal")),
 	game()
 {
 	printf("init :D \n");
-	auto transform = registerAndExposeComponent<Transform>(exports, "Transform");
-	auto rigidBody = registerAndExposeComponent<RigidBody>(exports, "RigidBody");
-	auto boxCollider = registerAndExposeComponent<BoxCollider>(exports, "BoxCollider");
-	auto circleCollider = registerAndExposeComponent<CircleCollider>(exports, "CircleCollider");
+
+	exports.setArray("components", [&](ArrayBuilder& builder)
+	{
+		registerAndExposeComponent<Transform>(builder, "Transform");
+		registerAndExposeComponent<RigidBody>(builder, "RigidBody");
+		registerAndExposeComponent<BoxCollider>(builder, "BoxCollider");
+		registerAndExposeComponent<CircleCollider>(builder, "CircleCollider");
+	});
 
 	const auto initSubSystem = [&](SubSystem& subSystem)
 	{
-
 		subSystem.initialize(config, exports);
 		subSystems_.push_back(&subSystem);
 	};
@@ -112,56 +127,56 @@ Engine::Engine(Config& config, ObjectBuilder& exports) :
 	initSubSystem(sceneManager);
 	initSubSystem(renderer);
 
-	Scene& scene = sceneManager.addScene("Test", true);
+	// Scene& scene = sceneManager.addScene("Test", true);
 
-	auto& entityA = scene.addEntity();
-	auto& entityB = scene.addEntity();
-	auto& entityC = scene.addEntity();
-	auto& entityD = scene.addEntity();
+	// auto& entityA = scene.addEntity();
+	// auto& entityB = scene.addEntity();
+	// auto& entityC = scene.addEntity();
+	// auto& entityD = scene.addEntity();
 
-	auto pl = []() { printf("------------------------------------------------\n"); };
+	// auto pl = []() { printf("------------------------------------------------\n"); };
 
-	pl();
+	// pl();
 
-	Transform t;
-	t.position.x = 1.0f;
-	t.position.y = 1.0f;
-	t.rotation.x = 1.0f;
-	t.rotation.y = 1.0f;
-	t.scale.x = 1.0f;
-	t.scale.y = 1.0f;
+	// Transform t;
+	// t.position.x = 1.0f;
+	// t.position.y = 1.0f;
+	// t.rotation.x = 1.0f;
+	// t.rotation.y = 1.0f;
+	// t.scale.x = 1.0f;
+	// t.scale.y = 1.0f;
 
-	RigidBody rb;
-	rb.mass = 123.0f;
-	rb.velocity.x = 0.0f;
-	rb.velocity.y = -0.98f;
+	// RigidBody rb;
+	// rb.mass = 123.0f;
+	// rb.velocity.x = 0.0f;
+	// rb.velocity.y = -0.98f;
 
-	BoxCollider bc;
-	bc.scale.x = 1.0f;
-	bc.scale.y = 1.0f;
+	// BoxCollider bc;
+	// bc.scale.x = 1.0f;
+	// bc.scale.y = 1.0f;
 
-	scene.addComponentToEntity(entityA, transform, &t);
-	scene.addComponentToEntity(entityA, rigidBody, &rb);
-	scene.addComponentToEntity(entityA, boxCollider, &bc);
+	// scene.addComponentToEntity(entityA, transform, &t);
+	// scene.addComponentToEntity(entityA, rigidBody, &rb);
+	// scene.addComponentToEntity(entityA, boxCollider, &bc);
 
-	pl();
-	rb.mass = 1337.070819f;
+	// pl();
+	// rb.mass = 1337.070819f;
 
-	scene.addComponentToEntity(entityB, boxCollider, &bc);
-	scene.addComponentToEntity(entityB, transform, &t);
-	scene.addComponentToEntity(entityB, rigidBody, &rb);
+	// scene.addComponentToEntity(entityB, boxCollider, &bc);
+	// scene.addComponentToEntity(entityB, transform, &t);
+	// scene.addComponentToEntity(entityB, rigidBody, &rb);
 
-	pl();
+	// pl();
 
-	RigidBody* rbA = entityA->getComponent<RigidBody>(rigidBody);
-	if (rbA != nullptr)
-		logger.info("got rigidbody A mass: ", rbA->mass);
+	// RigidBody* rbA = entityA->getComponent<RigidBody>(rigidBody);
+	// if (rbA != nullptr)
+	// 	logger.info("got rigidbody A mass: ", rbA->mass);
 
-	RigidBody* rbB = entityB->getComponent<RigidBody>(rigidBody);
-	if (rbB != nullptr)
-		logger.info("got rigidbody B mass: ", rbB->mass);
+	// RigidBody* rbB = entityB->getComponent<RigidBody>(rigidBody);
+	// if (rbB != nullptr)
+	// 	logger.info("got rigidbody B mass: ", rbB->mass);
 
-	renderer.render();
+	// renderer.render();
 }
 
 Engine::~Engine()

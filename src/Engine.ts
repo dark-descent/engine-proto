@@ -1,4 +1,7 @@
-import { Addon, EngineSystems } from "./Addon";
+import { Addon, AddonEngine } from "./Addon";
+import { CoreComponent } from "./CoreComponent";
+import { Renderer } from "./Renderer";
+import * as CoreComponents from "./components";
 
 export class Engine
 {
@@ -14,7 +17,8 @@ export class Engine
 	{
 		return {
 			logHandler: Engine.defaultLogHandler,
-			workerThreads: 3
+			workerThreads: 3,
+			renderer: new Renderer(Engine._instance)
 		};
 	};
 
@@ -52,11 +56,18 @@ export class Engine
 		if (this._instance)
 			throw new Error(`Engine is already initialized!`);
 
-		const conf = { ...Engine.defaultConfig, ...config };
+		const conf = {
+			...Engine.defaultConfig,
+			...config
+		};
+
+		await conf.renderer.initialize();
 
 		const internalEngine = Addon.module.initialize(conf);
 
-		return new Engine(internalEngine, conf, await this.initWorkers(conf.workerThreads));
+		this._instance = new Engine(internalEngine, conf, await this.initWorkers(conf.workerThreads));
+
+		return this._instance;
 	};
 
 	public static get()
@@ -69,13 +80,24 @@ export class Engine
 
 	private readonly _workers: ReadonlyArray<Worker>;
 
-	public readonly systems: Readonly<EngineSystems>;
-
-	private constructor(systems: EngineSystems, config: Required<EngineConfig>, workers: ReadonlyArray<Worker>)
+	private constructor(addonEngine: AddonEngine, config: Required<EngineConfig>, workers: ReadonlyArray<Worker>)
 	{
-		this.systems = systems;
+		// this.systems = systems;
+		const coreComponents = CoreComponents as any;
+		const keys = Object.keys(CoreComponents);
+		addonEngine.components.forEach((c) =>
+		{
+			if (coreComponents[c.name])
+				coreComponents[c.name].internalIndex_ = c.index;
+			else
+				console.warn(`Could not find CoreComponent "${c.name}"!`);
+			console.log(c.name, coreComponents[c.name]?.internalIndex_);
+		});
+
+
 		this._config = config;
 		this._workers = workers;
+
 	}
 }
 
@@ -83,6 +105,7 @@ export type EngineConfig = {
 	gameName: string;
 	logHandler?: LogCallback;
 	workerThreads?: number;
+	renderer?: Renderer;
 };
 
 export type KeysOfType<T, U> = { [K in keyof T]: T[K] extends U ? K : never }[keyof T];
