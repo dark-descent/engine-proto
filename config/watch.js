@@ -4,6 +4,7 @@ const p = require("path");
 const { spawn } = require("child_process");
 const os = require("os");
 const crypto = require("crypto");
+const find = require("find-process");
 
 const isNum = (val) => val.length > 0 && !Number.isNaN(Number(val));
 
@@ -22,8 +23,17 @@ const getTarget = () =>
 		if (existsSync(pkgPath))
 			return require(pkgPath).devDependencies.electron.replace("^", "");
 	}
+	else
+	{
+		const pkgPath = p.resolve(process.cwd(), "package.json");
+
+		if (existsSync(pkgPath))
+			return require(pkgPath).devDependencies.electron.replace("^", "");
+	}
 	return null;
 }
+
+const addonBuildPath = resolve("build", "Debug", "addon.node");
 
 const target = getTarget();
 const targetArg = target ? [`--target=${target}`] : [];
@@ -59,10 +69,23 @@ const readRecursive = (path) =>
 
 let nodeGypProc = null;
 
-const runNodeGyp = () =>
+const kill = async () =>
 {
-	if (nodeGypProc)
+	if(nodeGypProc)
+	{
+		console.log("Killing node-gyp instance...");
 		nodeGypProc.kill();
+		const list = await find("name", "node-gyp");
+		list.forEach((item) => 
+		{
+			process.kill(item.pid);
+		});
+	}
+}
+
+const runNodeGyp = async (callback = () => {}) =>
+{
+	await kill();
 
 	const files = readRecursive(addonSrc);
 	const json = JSON.stringify({
@@ -100,11 +123,11 @@ const runNodeGyp = () =>
 
 	writeFileSync(resolve("binding.gyp"), json, "utf-8");
 
-	nodeGypProc = spawn(nodeGyp, ["rebuild", ...nodeGypArgs], { stdio: "inherit" });
+	nodeGypProc = spawn(nodeGyp, ["rebuild", ...nodeGypArgs], { stdio: "inherit", cwd: resolve("") });
+	nodeGypProc.on("close", (code) => { callback(code !== 0, addonBuildPath); });
+	nodeGypProc.killProc = kill;
+	return nodeGypProc;
 }
-
-runNodeGyp();
-
 
 const getFileHashAsync = (path) => new Promise((res) => 
 {
@@ -116,8 +139,10 @@ const getFileHashAsync = (path) => new Promise((res) =>
 
 const getFileHash = (path) => crypto.createHash("md5").update(readFileSync(path, "utf-8")).digest("base64");
 
-const init = async () =>
+const watchAddon = async (callback = () => {}, onChange = () => {}) =>
 {
+	runNodeGyp(callback);
+
 	const srcPath = resolve("src", "addon", "src");
 	const includePath = resolve("src", "addon", "include");
 	const files = readRecursive(addonSrc).filter(file => file.startsWith(srcPath) || file.startsWith(includePath));
@@ -140,15 +165,15 @@ const init = async () =>
 
 			if (onChangeTimeout)
 				clearTimeout(onChangeTimeout);
-			onChangeTimeout = setTimeout(() => 
+			onChangeTimeout = setTimeout(async () => 
 			{
-
 				const hash = getFileHash(path);
 				const oldHash = fileHashes[path];
 				if (!oldHash || (oldHash !== hash))
 				{
-					runNodeGyp();
 					fileHashes[path] = hash;
+					await onChange();
+					runNodeGyp(callback);
 				}
 			}, 150);
 		}
@@ -159,4 +184,8 @@ const init = async () =>
 	});
 }
 
-init();
+
+if(require.main === module)
+	watchAddon();
+else
+	module.exports = watchAddon;
