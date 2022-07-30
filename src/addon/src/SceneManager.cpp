@@ -15,6 +15,8 @@ void SceneManager::addSceneCallback(V8CallbackArgs args)
 			v8::String::Utf8Value utf8Val(args.GetIsolate(), args[0]);
 			sceneName = std::string(*utf8Val);
 		}
+		
+		sm->engine.logger.info("add scene callback with name ", sceneName);
 
 		args.GetReturnValue().Set(createNumber(args.GetIsolate(), sm->addScene(sceneName, true)));
 	});
@@ -110,6 +112,7 @@ size_t SceneManager::addScene(std::string name, bool load)
 
 size_t SceneManager::addScene(std::string name, std::string path, bool load)
 {
+	engine.logger.info("Adding scene ", name);
 	Hash h = Hasher::hash(name.c_str());
 
 	if (scenesIndices_.contains(h))
@@ -129,7 +132,10 @@ size_t SceneManager::addScene(std::string name, std::string path, bool load)
 	Scene& scene = scenes_.emplace_back(engine, name, path);
 
 	if (load)
+	{
+		engine.logger.info("Loading scene ", name);
 		activeScene_ = index;
+	}
 
 	return index;
 }

@@ -10,11 +10,8 @@ const char* Logger::INFO_COLOR = "\033[34m";
 const char* Logger::WARN_COLOR = "\033[33m";
 const char* Logger::ERROR_COLOR = "\033[31m";
 
-#ifdef _DEBUG
-std::filesystem::path Logger::logPath_ = std::filesystem::current_path() / "test-project" / "logs";
-#else
 std::filesystem::path Logger::logPath_ = std::filesystem::current_path() / "logs";
-#endif
+
 size_t Logger::logPathLength_ = logPath_.string().size();
 
 std::unordered_map<std::string, Logger*> Logger::loggers_ = std::unordered_map<std::string, Logger*>();
@@ -97,10 +94,12 @@ void Logger::terminate()
 		cv_.notify_one();
 		if (logHandlerThread_.value().joinable())
 			logHandlerThread_.value().join();
+		logHandlerThread_.reset();
 	}
 
-	for (const auto& pair : loggers_)
-		delete pair.second;
+	loggers_.clear();
+
+	shouldTerminate_ = false;
 }
 
 Logger::Logger(const char* path) : logFile_(path)
@@ -138,6 +137,8 @@ Logger::Logger(const char* path) : logFile_(path)
 				lock.unlock();
 			}
 		}
+
+		puts("Terminated Log Thread!\n");
 	}));
 }
 

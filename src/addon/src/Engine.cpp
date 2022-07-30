@@ -42,7 +42,7 @@ void Engine::initialize(V8CallbackArgs args)
 			Config config(v8::Local<v8::Object>::Cast(args[0]));
 
 			node::AddEnvironmentCleanupHook(isolate, Engine::destroy, isolate);
-
+			puts("create new engine\n");
 			engine_ = new Engine(isolate, config, exports);
 
 			args.GetReturnValue().Set(exports.build());
@@ -89,6 +89,7 @@ void Engine::initializeWorker(V8CallbackArgs args)
 
 void Engine::destroy(void* data)
 {
+	puts("destroy engine\n");
 	delete Engine::engine_;
 	Engine::engine_ = nullptr;
 	v8::Isolate* isolate = static_cast<v8::Isolate*>(data);
@@ -115,8 +116,6 @@ Engine::Engine(v8::Isolate* isolate, Config& config, ObjectBuilder& exports) :
 	logger(Logger::get("internal")),
 	game()
 {
-	printf("init :D \n");
-
 	exports.setArray("components", [&](ArrayBuilder& builder)
 	{
 		registerAndExposeComponent<Transform>(builder, "Transform");
@@ -189,7 +188,7 @@ Engine::Engine(v8::Isolate* isolate, Config& config, ObjectBuilder& exports) :
 
 Engine::~Engine()
 {
-
+	logger.terminate();
 }
 
 const size_t Engine::getComponentSize(size_t index)
