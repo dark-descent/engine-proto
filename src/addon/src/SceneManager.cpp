@@ -15,10 +15,28 @@ void SceneManager::addSceneCallback(V8CallbackArgs args)
 			v8::String::Utf8Value utf8Val(args.GetIsolate(), args[0]);
 			sceneName = std::string(*utf8Val);
 		}
-		
+
 		sm->engine.logger.info("add scene callback with name ", sceneName);
 
 		args.GetReturnValue().Set(createNumber(args.GetIsolate(), sm->addScene(sceneName, true)));
+	});
+}
+
+void SceneManager::removeSceneCallback(V8CallbackArgs args)
+{
+	exceptionWrapper(args, [](V8CallbackArgs args)
+	{
+		SceneManager* sm = getExternalData<SceneManager*>(args);
+		std::string sceneName;
+		if (args.Length() > 0)
+		{
+			v8::String::Utf8Value utf8Val(args.GetIsolate(), args[0]);
+			sceneName = std::string(*utf8Val);
+		}
+		sm->engine.logger.info("remove scene callback with name ", sceneName);
+		const size_t index = sm->getSceneIndex(Hasher::hash(sceneName.c_str()));
+		sm->removeScene(index);
+		args.GetReturnValue().SetUndefined();
 	});
 }
 
@@ -58,6 +76,37 @@ void SceneManager::addEntityCallback(V8CallbackArgs args)
 
 }
 
+void SceneManager::loadEditorSceneCallback(V8CallbackArgs args)
+{
+	exceptionWrapper(args, [](V8CallbackArgs args)
+	{
+		SceneManager* sm = getExternalData<SceneManager*>(args);
+
+		std::string sceneName;
+
+		if (args.Length() > 0)
+		{
+			v8::String::Utf8Value utf8Val(args.GetIsolate(), args[0]);
+			sceneName = std::string(*utf8Val);
+		}
+
+		size_t index;
+		try
+		{
+			const Hash h = Hasher::hash(sceneName.c_str());
+			index = sm->getSceneIndex(h);
+		}
+		catch (std::runtime_error err)
+		{
+			sm->engine.logger.info("add scene callback with name ", sceneName);
+			index = sm->addScene(sceneName);
+		}
+		
+		sm->loadEditorScene(index);
+		args.GetReturnValue().Set(createNumber(args.GetIsolate(), index));
+	});
+}
+
 void SceneManager::onInitialize(Config& config, ObjectBuilder& exports)
 {
 	scenesIndices_.reserve(sceneBufferSize);
@@ -77,7 +126,8 @@ void SceneManager::onInitialize(Config& config, ObjectBuilder& exports)
 
 	exports.setFunction<SceneManager>("addScene", SceneManager::addSceneCallback, this);
 	exports.setFunction<SceneManager>("addEntity", SceneManager::addEntityCallback, this);
-	// exports.setFunction<SceneManager>("getScene", SceneManager::getSceneCallback, this);
+	exports.setFunction<SceneManager>("loadEditorScene", SceneManager::loadEditorSceneCallback, this);
+	exports.setFunction<SceneManager>("removeScene", SceneManager::removeSceneCallback, this);
 }
 
 void SceneManager::onTerminate()
@@ -105,6 +155,16 @@ size_t SceneManager::loadScene(const Hash hash)
 	return index;
 }
 
+size_t SceneManager::loadEditorScene(const size_t index)
+{
+	if(activeScene_ != index)
+	{
+		// TODO: unload active scene...
+	}
+	activeScene_ = index;
+	return index;
+}
+
 size_t SceneManager::addScene(std::string name, bool load)
 {
 	return addScene(name, createScenePath(scenes_.size() + 1), load);
@@ -118,7 +178,17 @@ size_t SceneManager::addScene(std::string name, std::string path, bool load)
 	if (scenesIndices_.contains(h))
 		throw std::runtime_error("Scene already exists!");
 
-	size_t index = scenes_.size();
+	size_t index;
+
+	if (freeSceneIndices_.size() > 0)
+	{
+		index = freeSceneIndices_.top();
+		freeSceneIndices_.pop();
+	}
+	else
+	{
+		index = scenes_.size();
+	}
 
 	if ((index + 1) % sceneBufferSize == 0)
 	{
@@ -134,11 +204,24 @@ size_t SceneManager::addScene(std::string name, std::string path, bool load)
 	if (load)
 	{
 		engine.logger.info("Loading scene ", name);
-		activeScene_ = index;
+		loadScene(h);
 	}
 
 	return index;
 }
+
+void SceneManager::removeScene(const size_t index)
+{
+	if (index == scenes_.size() - 1)
+	{
+		scenes_.pop_back();
+	}
+	else
+	{
+		freeSceneIndices_.push(index);
+	}
+}
+
 
 Scene& SceneManager::getActiveScene()
 {

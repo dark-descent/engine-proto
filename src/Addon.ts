@@ -16,8 +16,10 @@ type AddonModule = {
 export type AddonEngine = {
 	components: ComponentInfo[];
 	addEntity: (name?: string, scene?: number) => number;
-	addScene: (name?: string) => number;
+	addScene: (name: string) => number;
+	removeScene: (name: string) => void;
 	getScene: (name?: string) => Scene | null; // TODO:
+	loadEditorScene: (name: string) => number;
 };
 
 type ComponentInfo = {

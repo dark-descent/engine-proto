@@ -9,6 +9,8 @@ SUB_SYSTEM_CLASS(SceneManager)
 private:
 	static void addSceneCallback(V8CallbackArgs args);
 	static void addEntityCallback(V8CallbackArgs args);
+	static void removeSceneCallback(V8CallbackArgs args);
+	static void loadEditorSceneCallback(V8CallbackArgs args);
 
 	constexpr static size_t sceneBufferSize = 64;
 
@@ -26,14 +28,20 @@ private:
 
 	std::unordered_map<Hash, size_t> scenesIndices_;
 	std::vector<Scene> scenes_;
+	std::stack<size_t> freeSceneIndices_;
 
-	SUB_SYSTEM_OVERRIDES(SceneManager, isLoaded_(false), activeScene_(0), scenesIndices_(), scenes_());
+	SUB_SYSTEM_OVERRIDES(SceneManager, isLoaded_(false), activeScene_(0), scenesIndices_(), scenes_(), freeSceneIndices_());
+
+private:
+	size_t loadEditorScene(const size_t index);
 
 public:
 	size_t loadScene(const Hash name);
 
 	size_t addScene(std::string name, bool load = false);
 	size_t addScene(std::string name, std::string path, bool load = false);
+
+	void removeScene(const size_t index);
 
 	Scene& getActiveScene();
 
