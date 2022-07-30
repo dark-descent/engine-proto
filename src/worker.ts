@@ -7,6 +7,6 @@ self.onmessage = ({ data }) =>
 
 const engine = Addon.module.initializeWorker();
 
-console.log(engine);
+// console.log(engine);
 
 self.postMessage({ msg: "initialized", data: { hihi: ":D", wop: 123 } });

@@ -6,6 +6,13 @@
 
 Engine* Engine::engine_ = nullptr;
 
+Engine* Engine::get()
+{
+	if(engine_ == nullptr)
+		throw std::runtime_error("Engine is not initialized!");
+	return engine_;
+}
+
 void Engine::initialize(V8CallbackArgs args)
 {
 	using namespace v8;
@@ -64,6 +71,7 @@ void Engine::initializeWorker(V8CallbackArgs args)
 		try
 		{
 			ObjectBuilder exports(isolate);
+			
 
 			// node::AddEnvironmentCleanupHook(isolate, Engine::destroy, isolate);
 

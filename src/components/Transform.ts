@@ -32,4 +32,9 @@ export default class Transform extends CoreComponent
 	{
 
 	};
+
+	public get children(): Transform[]
+	{
+		return [];
+	}
 }

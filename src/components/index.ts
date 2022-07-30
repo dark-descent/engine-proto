@@ -9,3 +9,10 @@ export {
 	BoxCollider,
 	RigidBody
 };
+
+export const CoreComponents: { [key: string]: any } = {
+	Transform,
+	CircleCollider,
+	BoxCollider,
+	RigidBody
+};

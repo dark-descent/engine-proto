@@ -5,6 +5,27 @@
 
 struct HandleIndex
 {
+	constexpr static uint64_t serialize(HandleIndex& i) 
+	{
+		uint64_t serializedIndex = i.buffer << sizeof(uint32_t);
+		return serializedIndex | i.index;
+	}
+
+	constexpr static HandleIndex parse(uint64_t i) 
+	{
+		HandleIndex index;
+		index.index = i;
+		index.buffer = i >> 32;
+		return index;
+	}
+
+	constexpr static HandleIndex& parse(HandleIndex& index, uint64_t i) 
+	{
+		index.index = i;
+		index.buffer = i >> 32;
+		return index;
+	}
+
 	int32_t buffer;
 	int32_t index;
 };

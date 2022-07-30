@@ -234,7 +234,7 @@ Handle<Arch>* Scene::getArchPtr(HandleIndex index)
 
 size_t Scene::filterArchTypes(size_t bitMask, ArchGroup& archTypes)
 {
-	size_t count = 0;	
+	size_t count = 0;
 	archHandles_.iterate([&](Handle<Arch>& arch, size_t i)
 	{
 		if ((arch->bitMask & bitMask) == bitMask)

@@ -1,7 +1,7 @@
 import { Addon, AddonEngine } from "./Addon";
-import { CoreComponent } from "./CoreComponent";
 import { Renderer } from "./Renderer";
-import * as CoreComponents from "./components";
+import { CoreComponents } from "./components";
+import { Scene } from "./Scene";
 
 export class Engine
 {
@@ -72,32 +72,44 @@ export class Engine
 
 	public static get()
 	{
-		if (this._instance)
-			throw new Error(`Engine is already initialized!`);
+		if (!this._instance)
+			throw new Error(`Engine is not initialized yet!`);
+		return this._instance;
 	}
 
 	private readonly _config: Readonly<EngineConfig>;
 
 	private readonly _workers: ReadonlyArray<Worker>;
 
+	private readonly _activeScene: Scene | null = null;
+
+	public get activeScene(): Scene 
+	{
+		if (this._activeScene == null)
+			throw new Error("No scene is loaded!");
+		return this._activeScene;
+	}
+
+	/**
+	 * @internal
+	 */
+	public readonly _addonEngine: Readonly<AddonEngine>;
+
 	private constructor(addonEngine: AddonEngine, config: Required<EngineConfig>, workers: ReadonlyArray<Worker>)
 	{
-		// this.systems = systems;
-		const coreComponents = CoreComponents as any;
-		const keys = Object.keys(CoreComponents);
+		this._addonEngine = addonEngine;
+
 		addonEngine.components.forEach((c) =>
 		{
-			if (coreComponents[c.name])
-				coreComponents[c.name].internalIndex_ = c.index;
+			if (CoreComponents[c.name])
+				CoreComponents[c.name]._internalIndex = c.index;
 			else
 				console.warn(`Could not find CoreComponent "${c.name}"!`);
-			console.log(c.name, coreComponents[c.name]?.internalIndex_);
+			// console.log(c.name, CoreComponents[c.name]?._internalIndex);
 		});
-
 
 		this._config = config;
 		this._workers = workers;
-
 	}
 }
 

@@ -1,4 +1,5 @@
 import type { EngineConfig } from "./Engine";
+import { Scene } from "./Scene";
 
 const isWorker = !("window" in self && "document" in self);
 
@@ -14,6 +15,9 @@ type AddonModule = {
 
 export type AddonEngine = {
 	components: ComponentInfo[];
+	addEntity: (name?: string, scene?: number) => number;
+	addScene: (name?: string) => number;
+	getScene: (name?: string) => Scene | null; // TODO:
 };
 
 type ComponentInfo = {
