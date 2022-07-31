@@ -142,26 +142,23 @@ size_t SceneManager::loadScene(const Hash hash)
 
 	const size_t index = getSceneIndex(hash);
 	Scene& scene = getScene(index);
-
-	std::filesystem::path scenesPath = std::filesystem::path(engine.game.getGameDir()) / "scenes" / scene.path();
-
-	Bin::Reader reader(scenesPath.string());
-
-	reader.read([&](Bin::Parser& parser)
-	{
-		activeScene_ = index;
-	});
-
+	scene.load();
+	activeScene_ = index;
+	isLoaded_ = true;
 	return index;
 }
 
 size_t SceneManager::loadEditorScene(const size_t index)
 {
-	if(activeScene_ != index)
+	if(isLoaded_ && (activeScene_ != index))
 	{
-		// TODO: unload active scene...
+		Scene& scene = getActiveScene();
+		scene.unload();
 	}
+	Scene& scene = getScene(index);
+	scene.load();
 	activeScene_ = index;
+	isLoaded_ = true;
 	return index;
 }
 

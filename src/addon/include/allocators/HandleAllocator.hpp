@@ -58,8 +58,10 @@ class HandleAllocator
 
 	inline Handle<T>* allocBuffer()
 	{
+		printf("Alloc buffer [HandleAllocator] %s\n", typeid(T).name());
 		Handle<T>* ptr = static_cast<Handle<T>*>(aligned_malloc(0x10, bufferSize()));
-		memset(ptr, 0, bufferSize());
+		// memset(ptr, 0, bufferSize());
+		buffers_.emplace_back(ptr);
 		return ptr;
 	}
 
@@ -93,8 +95,12 @@ public:
 
 	void clear()
 	{
+		printf("Clear buffers [HandleAllocator] %s\n", typeid(T).name());
 		for (auto& ptr : buffers_)
+		{
+			printf("Free buffer [HandleAllocator] %s\n", typeid(T).name());
 			aligned_free(ptr);
+		}
 		insertIndex_= { -1, 0 };
 	}
 	
@@ -119,7 +125,7 @@ public:
 	{
 		if (insertIndex_.buffer == -1)
 		{
-			buffers_.emplace_back(allocBuffer());
+			allocBuffer();
 			insertIndex_.buffer++;
 		}
 
@@ -128,11 +134,12 @@ public:
 
 		Handle<T>* handle = &buffers_[bi][i];
 		handle->index = { bi, i };
+		
 		if (insertIndex_.index >= bufferSize())
 		{
 			insertIndex_.index = 0;
 			insertIndex_.buffer++;
-			buffers_.emplace_back(allocBuffer());
+			allocBuffer();
 		}
 
 		return *handle;

@@ -19,12 +19,17 @@ private:
 	HandleAllocator<Entity, 1024> entityHandles_;
 	HandleAllocator<Arch, 128> archHandles_;
 	std::vector<std::vector<Handle<Arch>*>> archLevels_;
-	Handle<Arch> rootArch_;
+	Handle<Arch>* rootArch_;
 
 	inline Handle<Arch>& addArch(const size_t componentIndex, const size_t bitMask, const size_t size, const size_t level);
 
 public:
 	Scene(Engine& engine, std::string name, std::string path);
+
+	void load(bool parse = true);
+	void unload();
+
+	bool isLoaded();
 
 	const char* name();
 	const char* path();

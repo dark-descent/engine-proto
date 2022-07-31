@@ -8,9 +8,45 @@ Scene::Scene(Engine& engine, std::string name, std::string path) :
 	entityHandles_(),
 	archHandles_(),
 	archLevels_(),
-	rootArch_(addArch(0, 0, 0, 0))
+	rootArch_(nullptr)
 {
 
+}
+
+
+void Scene::load(bool parse)
+{
+	engine_.logger.info("load scene ", name_);
+
+	if (!isLoaded())
+		return;
+
+	rootArch_ = std::addressof(addArch(0, 0, 0, 0));
+
+	if (parse)
+	{
+		Bin::Reader reader(path_);
+
+		reader.read([&](Bin::Parser& parser)
+		{
+
+		});
+	}
+}
+
+void Scene::unload()
+{
+	engine_.logger.info("unload scene ", name_);
+	if (!isLoaded())
+		return;
+
+	entityHandles_.clear();
+	rootArch_ = nullptr;
+}
+
+bool Scene::isLoaded()
+{
+	return rootArch_ != nullptr;
 }
 
 const char* Scene::name()
@@ -90,8 +126,8 @@ Handle<Arch>& Scene::addArch(const size_t componentIndex, const size_t bitMask, 
 	else if (level == 1)
 	{
 		// printf("add root arch refs\n");
-		rootArch_.data.add.emplace_back(archPtr, 0);
-		arch.data.remove.emplace_back(std::addressof(rootArch_), 0);
+		rootArch_->data.add.emplace_back(archPtr, 0);
+		arch.data.remove.emplace_back(rootArch_, 0);
 	}
 
 	if (level + 1 < archLevels_.size())
@@ -118,7 +154,7 @@ Handle<Entity>& Scene::addEntity(std::string& name)
 	engine_.logger.info("Added entity with name ", name);
 	Handle<Entity>& handle = entityHandles_.alloc();
 	handle.data.entity = nullptr;
-	handle.data.arch = std::addressof(rootArch_);
+	handle.data.arch = rootArch_;
 	return handle;
 }
 
