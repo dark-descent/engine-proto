@@ -16,31 +16,34 @@ Scene::Scene(Engine& engine, std::string name, std::string path) :
 
 void Scene::load(bool parse)
 {
-	engine_.logger.info("load scene ", name_);
-
-	if (!isLoaded())
+	if (isLoaded())
 		return;
+
+	engine_.logger.info("load scene ", name_);
 
 	rootArch_ = std::addressof(addArch(0, 0, 0, 0));
 
+	engine_.logger.info("load scene 2 ", name_);
 	if (parse)
 	{
 		Bin::Reader reader(path_);
 
 		reader.read([&](Bin::Parser& parser)
 		{
-
+			// TODO:
 		});
 	}
 }
 
 void Scene::unload()
 {
-	engine_.logger.info("unload scene ", name_);
 	if (!isLoaded())
 		return;
 
+	engine_.logger.info("unload scene ", name_);
+
 	entityHandles_.clear();
+	// archHandles_.clear();
 	rootArch_ = nullptr;
 }
 
@@ -64,21 +67,29 @@ Handle<Arch>& Scene::addArch(const size_t componentIndex, const size_t bitMask, 
 	engine_.logger.info("Create arch type ", bitMask, " with size ", size, " at level ", level);
 
 	Handle<Arch>& arch = archHandles_.alloc();
+
+	engine_.logger.info("Arch allocated!");
+
 	Handle<Arch>* archPtr = std::addressof(arch);
 
 	arch.data.bitMask = bitMask;
 	arch.data.size = size;
 	arch.data.allocator.reset(size);
+	
+	engine_.logger.info("Arch initialized!");
 
 	for (size_t i = archLevels_.size(), l = level + 1; i < l; i++)
 		archLevels_.emplace_back();
 
 	// add the arch level 
 	archLevels_[level].emplace_back(std::addressof(arch));
+	
+	engine_.logger.info("Arch levels created!");
 
-	if (bitMask == 0)
+	if (level == 0)
 	{
 		arch.data.offsets.emplace_back(0);
+		engine_.logger.info("Root arch offsets added!");
 	}
 	else if (level != 0)
 	{

@@ -60,7 +60,7 @@ class HandleAllocator
 	{
 		printf("Alloc buffer [HandleAllocator] %s\n", typeid(T).name());
 		Handle<T>* ptr = static_cast<Handle<T>*>(aligned_malloc(0x10, bufferSize()));
-		// memset(ptr, 0, bufferSize());
+		memset(ptr, 0, bufferSize());
 		buffers_.emplace_back(ptr);
 		return ptr;
 	}
