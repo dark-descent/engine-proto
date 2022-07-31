@@ -13,12 +13,12 @@ export class Scene
 			engine = Engine.get();
 		this.name = name
 		this.engine = engine;
-		this._sceneIndex = sceneIndex < 0 ? engine._addonEngine[fromEditor ? "loadEditorScene": "addScene"](name) : sceneIndex;
+		this._sceneIndex = sceneIndex < 0 ? engine.api[fromEditor ? "loadEditorScene": "addScene"](name) : sceneIndex;
 		console.log(this._sceneIndex);
 	}
 
 	public readonly addEntity = (name?: string): Entity => 
 	{
-		return new Entity(name, this, this.engine._addonEngine.addEntity(name));
+		return new Entity(name, this, this.engine.api.addEntity(name));
 	};
 }

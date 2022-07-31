@@ -5,13 +5,13 @@
 
 struct HandleIndex
 {
-	constexpr static uint64_t serialize(HandleIndex& i) 
+	constexpr static uint64_t serialize(HandleIndex& i)
 	{
 		uint64_t serializedIndex = i.buffer << sizeof(uint32_t);
 		return serializedIndex | i.index;
 	}
 
-	constexpr static HandleIndex parse(uint64_t i) 
+	constexpr static HandleIndex parse(uint64_t i)
 	{
 		HandleIndex index;
 		index.index = i;
@@ -19,7 +19,7 @@ struct HandleIndex
 		return index;
 	}
 
-	constexpr static HandleIndex& parse(HandleIndex& index, uint64_t i) 
+	constexpr static HandleIndex& parse(HandleIndex& index, uint64_t i)
 	{
 		index.index = i;
 		index.buffer = i >> 32;
@@ -36,14 +36,19 @@ struct Handle
 	HandleIndex index;
 	T data;
 
+	~Handle()
+	{
+		data.~T();
+	}
+
 	T& operator*()
 	{
 		return data;
 	}
 
 	T* operator->()
-	{ 
-		return &data; 
+	{
+		return &data;
 	}
 };
 
@@ -58,7 +63,7 @@ class HandleAllocator
 
 	inline Handle<T>* allocBuffer()
 	{
-		printf("Alloc buffer [HandleAllocator] %s\n", typeid(T).name());
+		puts("Allocated handle buffer\n");
 		Handle<T>* ptr = static_cast<Handle<T>*>(aligned_malloc(0x10, bufferSize()));
 		memset(ptr, 0, bufferSize());
 		buffers_.emplace_back(ptr);
@@ -72,7 +77,7 @@ public:
 	}
 
 
-	HandleAllocator() : insertIndex_({ -1, 0 }), buffers_(), freeIndices_() {  }
+	HandleAllocator() : insertIndex_({ -1, 0 }), buffers_(), freeIndices_() { }
 
 	HandleAllocator(HandleAllocator&& other)
 	{
@@ -95,20 +100,23 @@ public:
 
 	void clear()
 	{
-		printf("Clear buffers [HandleAllocator] %s\n", typeid(T).name());
+		iterate([](Handle<T>& handle, size_t i)
+		{
+			handle.~Handle<T>();
+		});
 		for (auto& ptr : buffers_)
 		{
-			printf("Free buffer [HandleAllocator] %s\n", typeid(T).name());
+			puts("Freed handle buffer\n");
 			aligned_free(ptr);
 		}
-		insertIndex_= { -1, 0 };
+		insertIndex_ = { -1, 0 };
 	}
-	
+
 	Handle<T>& at(size_t bufferIndex, size_t index)
 	{
 		return buffers_[bufferIndex][index];
 	}
-	
+
 	Handle<T>& at(HandleIndex index)
 	{
 		return at(index.buffer, index.index);
@@ -127,6 +135,7 @@ public:
 		{
 			allocBuffer();
 			insertIndex_.buffer++;
+			insertIndex_.index = 0;
 		}
 
 		int32_t bi = insertIndex_.buffer;
@@ -134,8 +143,8 @@ public:
 
 		Handle<T>* handle = &buffers_[bi][i];
 		handle->index = { bi, i };
-		
-		if (insertIndex_.index >= bufferSize())
+
+		if (insertIndex_.index >= Count)
 		{
 			insertIndex_.index = 0;
 			insertIndex_.buffer++;
@@ -176,22 +185,22 @@ public:
 	{
 		const size_t count = size();
 		size_t counter = 0;
-		for(Handle<T>* buffer : buffers_)
+		for (Handle<T>* buffer : buffers_)
 		{
-			for(size_t i = 0; i < Count; i++)
+			for (size_t i = 0; i < Count; i++)
 			{
 				Handle<T>& handle = buffer[i];
-				if(handle.index.buffer != -1)
+				if (handle.index.buffer != -1)
 				{
 					callback(handle, counter++);
-					if(counter >= count)
+					if (counter >= count)
 						goto exitLoop;
-				}		
-				
+				}
+
 			}
 		}
 
-		exitLoop:
-			return;
+	exitLoop:
+		return;
 	}
 };

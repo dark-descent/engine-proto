@@ -14,7 +14,10 @@ class ComponentAllocator
 
 	inline char* allocBuffer()
 	{
-		return static_cast<char*>(aligned_malloc(0x10, bufferSize_));
+		puts("allocated component buffer\n");
+		char* buffer = static_cast<char*>(aligned_malloc(0x10, bufferSize_));
+		buffers_.emplace_back(buffer);
+		return buffer;
 	}
 
 public:
@@ -37,7 +40,10 @@ public:
 	void clear()
 	{
 		for (auto& ptr : buffers_)
+		{
+			puts("freed component buffer\n");
 			aligned_free(ptr);
+		}
 		insertIndex_= { -1, 0 };
 	}
 	
@@ -55,7 +61,7 @@ public:
 			
 		if (insertIndex_.buffer == -1)
 		{
-			buffers_.emplace_back(allocBuffer());
+			allocBuffer();
 			insertIndex_.buffer++;
 		}
 
@@ -66,7 +72,7 @@ public:
 		{
 			insertIndex_.index = 0;
 			insertIndex_.buffer++;
-			buffers_.emplace_back(allocBuffer());
+			allocBuffer();
 		}
 
 		return { bi, i };

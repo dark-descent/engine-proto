@@ -69,9 +69,9 @@ void SceneManager::addEntityCallback(V8CallbackArgs args)
 
 		Scene& s = sm->scenes_.at(sceneIndex);
 		Handle<Entity>& entity = s.addEntity();
-		auto index = HandleIndex::serialize(entity.index);
+		auto ptr = std::addressof(entity);
 
-		args.GetReturnValue().Set(createNumber(args.GetIsolate(), index));
+		args.GetReturnValue().Set(createPointer(args.GetIsolate(), ptr));
 	});
 
 }
@@ -90,19 +90,25 @@ void SceneManager::loadEditorSceneCallback(V8CallbackArgs args)
 			sceneName = std::string(*utf8Val);
 		}
 
-		size_t index;
-		try
+		if (sm->isLoaded_)
 		{
-			const Hash h = Hasher::hash(sceneName.c_str());
-			index = sm->getSceneIndex(h);
+			Scene& scene = sm->getActiveScene();
+			if (scene.name() != sceneName)
+			{
+				sm->removeScene(sm->activeScene_);
+			}
+			else
+			{
+				args.GetReturnValue().Set(createNumber(args.GetIsolate(), sm->activeScene_));
+				return;
+			}
 		}
-		catch (std::runtime_error err)
-		{
-			sm->engine.logger.info("add scene callback with name ", sceneName);
-			index = sm->addScene(sceneName);
-		}
-		
-		sm->loadEditorScene(index);
+
+		sm->engine.logger.info("AddSceneCallback() called with name ", sceneName);
+		const size_t index = sm->addScene(sceneName);
+		Scene& scene = sm->getScene(index);
+		scene.load();
+		sm->isLoaded_ = true;
 		args.GetReturnValue().Set(createNumber(args.GetIsolate(), index));
 	});
 }
@@ -141,20 +147,6 @@ size_t SceneManager::loadScene(const Hash hash)
 		throw std::runtime_error("Could not load scene!");
 
 	const size_t index = getSceneIndex(hash);
-	Scene& scene = getScene(index);
-	scene.load();
-	activeScene_ = index;
-	isLoaded_ = true;
-	return index;
-}
-
-size_t SceneManager::loadEditorScene(const size_t index)
-{
-	if(isLoaded_ && (activeScene_ != index))
-	{
-		Scene& scene = getActiveScene();
-		scene.unload();
-	}
 	Scene& scene = getScene(index);
 	scene.load();
 	activeScene_ = index;
@@ -209,26 +201,28 @@ size_t SceneManager::addScene(std::string name, std::string path, bool load)
 
 void SceneManager::removeScene(const size_t index)
 {
+	Scene& scene = getScene(index);
+	scenesIndices_.erase(Hasher::hash(scene.name()));
+
 	if (index == scenes_.size() - 1)
-	{
 		scenes_.pop_back();
-	}
 	else
-	{
 		freeSceneIndices_.push(index);
-	}
 }
 
+int64_t SceneManager::getActiveSceneIndex()
+{
+	if(!isLoaded_)
+		return -1;
+	return this->activeScene_;
+}
 
 Scene& SceneManager::getActiveScene()
 {
 	if (!isLoaded_)
 		throw std::runtime_error("No scenes are loaded yet!");
-	engine.logger.info("Get Active Scene");
-	engine.logger.info("scenes_.size() => ", scenes_.size());
 	return scenes_.at(activeScene_);
 }
-
 
 size_t SceneManager::getSceneIndex(const Hash hash)
 {

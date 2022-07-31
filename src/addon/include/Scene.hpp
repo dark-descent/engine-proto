@@ -16,7 +16,7 @@ private:
 	std::string name_;
 	std::string path_;
 
-	HandleAllocator<Entity, 1024> entityHandles_;
+	HandleAllocator<Entity, 16> entityHandles_;
 	HandleAllocator<Arch, 128> archHandles_;
 	std::vector<std::vector<Handle<Arch>*>> archLevels_;
 	Handle<Arch>* rootArch_;
@@ -25,6 +25,7 @@ private:
 
 public:
 	Scene(Engine& engine, std::string name, std::string path);
+	~Scene();
 
 	void load(bool parse = true);
 	void unload();

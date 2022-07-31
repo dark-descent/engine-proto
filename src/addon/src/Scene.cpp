@@ -13,17 +13,20 @@ Scene::Scene(Engine& engine, std::string name, std::string path) :
 
 }
 
+Scene::~Scene()
+{
+
+}
 
 void Scene::load(bool parse)
 {
 	if (isLoaded())
 		return;
 
-	engine_.logger.info("load scene ", name_);
+	engine_.logger.info("Loading scene ", name_, "...");
 
 	rootArch_ = std::addressof(addArch(0, 0, 0, 0));
-
-	engine_.logger.info("load scene 2 ", name_);
+	
 	if (parse)
 	{
 		Bin::Reader reader(path_);
@@ -40,10 +43,11 @@ void Scene::unload()
 	if (!isLoaded())
 		return;
 
-	engine_.logger.info("unload scene ", name_);
+	engine_.logger.info("Unloading scene ", name_, "...");
 
 	entityHandles_.clear();
-	// archHandles_.clear();
+	archHandles_.clear();
+	archLevels_.clear();
 	rootArch_ = nullptr;
 }
 
@@ -68,28 +72,21 @@ Handle<Arch>& Scene::addArch(const size_t componentIndex, const size_t bitMask, 
 
 	Handle<Arch>& arch = archHandles_.alloc();
 
-	engine_.logger.info("Arch allocated!");
-
 	Handle<Arch>* archPtr = std::addressof(arch);
 
 	arch.data.bitMask = bitMask;
 	arch.data.size = size;
 	arch.data.allocator.reset(size);
-	
-	engine_.logger.info("Arch initialized!");
 
 	for (size_t i = archLevels_.size(), l = level + 1; i < l; i++)
 		archLevels_.emplace_back();
 
 	// add the arch level 
 	archLevels_[level].emplace_back(std::addressof(arch));
-	
-	engine_.logger.info("Arch levels created!");
 
 	if (level == 0)
 	{
 		arch.data.offsets.emplace_back(0);
-		engine_.logger.info("Root arch offsets added!");
 	}
 	else if (level != 0)
 	{
@@ -115,8 +112,6 @@ Handle<Arch>& Scene::addArch(const size_t componentIndex, const size_t bitMask, 
 			bitMaskTest >>= 1;
 		}
 	}
-
-	engine_.logger.info("arch offsets: ", arch.data.offsets.size());
 
 	const size_t componentBitMask = 1ULL << componentIndex;
 
@@ -162,7 +157,6 @@ Handle<Arch>& Scene::addArch(const size_t componentIndex, const size_t bitMask, 
 
 Handle<Entity>& Scene::addEntity(std::string& name)
 {
-	engine_.logger.info("Added entity with name ", name);
 	Handle<Entity>& handle = entityHandles_.alloc();
 	handle.data.entity = nullptr;
 	handle.data.arch = rootArch_;

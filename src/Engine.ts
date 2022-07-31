@@ -66,7 +66,8 @@ export class Engine
 		const internalEngine = Addon.module.initialize(conf);
 
 		this._instance = new Engine(internalEngine, conf, await this.initWorkers(conf.workerThreads));
-
+		console.log("Engine initialized!", this._instance);
+		(window as any).engine = this._instance;
 		return this._instance;
 	};
 
@@ -93,11 +94,11 @@ export class Engine
 	/**
 	 * @internal
 	 */
-	public readonly _addonEngine: Readonly<AddonEngine>;
+	public readonly api: Readonly<AddonEngine>;
 
 	private constructor(addonEngine: AddonEngine, config: Required<EngineConfig>, workers: ReadonlyArray<Worker>)
 	{
-		this._addonEngine = addonEngine;
+		this.api = addonEngine;
 
 		addonEngine.components.forEach((c) =>
 		{

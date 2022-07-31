@@ -32,9 +32,6 @@ private:
 
 	SUB_SYSTEM_OVERRIDES(SceneManager, isLoaded_(false), activeScene_(0), scenesIndices_(), scenes_(), freeSceneIndices_());
 
-private:
-	size_t loadEditorScene(const size_t index);
-
 public:
 	size_t loadScene(const Hash name);
 
@@ -44,6 +41,7 @@ public:
 	void removeScene(const size_t index);
 
 	Scene& getActiveScene();
+	int64_t getActiveSceneIndex();
 
 	size_t getSceneIndex(const Hash hash);
 	Scene& getSceneFromHash(const Hash hash);

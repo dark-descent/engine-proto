@@ -27,6 +27,7 @@ private:
 	bool isInitialized_ = false;
 
 	std::vector<ComponentInfo> components_;
+	std::vector<JsClass*> jsComponents_;
 	std::vector<SubSystem*> subSystems_;
 
 	std::unordered_map<Hash, size_t> componentTypeMap_;
@@ -34,6 +35,7 @@ private:
 	v8::Isolate* isolate_;
 
 public:
+	JsEntity jsEntity;
 	AssetManager assetManager;
 	SceneManager sceneManager;
 	Renderer renderer;
@@ -55,18 +57,22 @@ private:
 	Engine(const Engine&) = delete;
 	Engine(Engine&&) = delete;
 
-	template<typename T>
+	template<typename Component, class JsComponentType>
 	size_t registerAndExposeComponent(ArrayBuilder& exports, const char* name)
 	{
 		const size_t index = components_.size();
 		const uint64_t bitMask = 1ULL << index;
 
-		components_.emplace_back(index, bitMask, sizeof(T));
-		componentTypeMap_.emplace(std::make_pair(Hasher::hash(typeid(T).name()), index));
+		components_.emplace_back(index, bitMask, sizeof(Component));
+		componentTypeMap_.emplace(std::make_pair(Hasher::hash(typeid(Component).name()), index));
+
+		auto jsType = new JsComponentType(*this, name);
+		jsType->init(isolate_);
+		jsComponents_.emplace_back(jsType);
 
 #ifdef _DEBUG
-		const Hash hash = Hasher::hash<T>();
-		const char* componentName = typeid(T).name();
+		const Hash hash = Hasher::hash<Component>();
+		const char* componentName = typeid(Component).name();
 
 		bool found = false;
 		for (const auto& item : componentNames_)
@@ -88,10 +94,12 @@ private:
 			componentNames_.push_back(std::make_pair(hash, componentName));
 		}
 #endif
+
 		exports.pushObject([&](ObjectBuilder& obj)
 		{
 			obj.set("name", name);
 			obj.set("index", index);
+			obj.setVal("type", jsType->getClass(isolate_));
 		});
 
 		return index;
@@ -106,7 +114,7 @@ public:
 	const ComponentInfo& getComponent()
 	{
 		Hash h = Hasher::hash(typeid(T).name());
-		if(!componentTypeMap_.contains(h))
+		if (!componentTypeMap_.contains(h))
 			throw std::runtime_error("Could not get Component!");
 		return getComponent(componentTypeMap_.at(h));
 	}

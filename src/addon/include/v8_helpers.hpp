@@ -35,6 +35,18 @@ inline v8::Local<v8::Value> createPointer(v8::Isolate* isolate, T pointer)
 	return createNumber<uint64_t>(isolate, ptr);
 }
 
+template<typename T>
+inline v8::Local<v8::Value> createExternal(v8::Isolate* isolate, T* pointer)
+{
+	return v8::External::New(isolate, pointer);
+}
+
+template<typename T>
+inline v8::Local<v8::Value> createExternal(v8::Isolate* isolate, T& ref)
+{
+	return v8::External::New(isolate, std::addressof(ref));
+}
+
 inline v8::Local<v8::Function> createFunction(v8::Isolate* isolate, v8::FunctionCallback callback)
 {
 	return v8::FunctionTemplate::New(isolate, callback)->GetFunction(isolate->GetCurrentContext()).ToLocalChecked();
@@ -103,6 +115,7 @@ public:
 	ObjectBuilder(v8::Isolate* isolate, v8::Local<v8::Object> obj) : isolate_(isolate), ctx_(isolate->GetCurrentContext()), obj_(obj) { }
 
 	void set(const char* key, const v8::Local<v8::Value>& val) { this->obj_->Set(this->ctx_, createString(this->isolate_, key), val); }
+	void setVal(const char* key, const v8::Local<v8::Value>& val) { this->obj_->Set(this->ctx_, createString(this->isolate_, key), val); }
 
 	void set(const char* key, const char* string) { this->obj_->Set(this->ctx_, createString(this->isolate_, key), createString(this->isolate_, string)); }
 
@@ -112,7 +125,7 @@ public:
 	void set(const char* key, T number) { this->obj_->Set(this->ctx_, createString(this->isolate_, key), createNumber(this->isolate_, number)); }
 
 	template<typename FillCallback>
-	void setArray(const char* key, FillCallback callback = [](v8::Local<v8::Array>&){}) { this->obj_->Set(this->ctx_, createString(this->isolate_, key), createArray(isolate_, callback)); }
+	void setArray(const char* key, FillCallback callback = [](v8::Local<v8::Array>&) { }) { this->obj_->Set(this->ctx_, createString(this->isolate_, key), createArray(isolate_, callback)); }
 
 	void setFunction(const char* key, v8::FunctionCallback callback) { this->obj_->Set(this->ctx_, createString(this->isolate_, key), createFunction(this->isolate_, callback)); }
 
@@ -147,9 +160,9 @@ public:
 	void push(bool boolean) { arr_->Set(ctx_, pushIndex++, v8::Boolean::New(isolate_, boolean)); }
 	template<typename T>
 	void push(T number) { arr_->Set(ctx_, pushIndex++, createNumber(isolate_, number)); }
-	
+
 	template<typename FillCallback>
-	void pushArray(FillCallback callback = [](v8::Local<v8::Array>&){}) { this->arr_->Set(this->ctx_, pushIndex++, createArray(isolate_, callback)); }
+	void pushArray(FillCallback callback = [](v8::Local<v8::Array>&) { }) { this->arr_->Set(this->ctx_, pushIndex++, createArray(isolate_, callback)); }
 
 	void pushFunction(v8::FunctionCallback callback) { this->arr_->Set(this->ctx_, pushIndex++, createFunction(this->isolate_, callback)); }
 
@@ -162,5 +175,51 @@ public:
 	v8::Local<v8::Array> build()
 	{
 		return arr_;
+	}
+};
+
+class JsClass
+{
+public:
+	template<typename T, class... Args, std::enable_if_t<std::is_constructible<T, Args&&...>::value, int> = 0>
+	static T New(v8::Isolate* isolate, Args&&... args)
+	{
+		T jsClass = T(std::forward<Args>(args)...);
+		jsClass.init(isolate);
+		return jsClass;
+	}
+
+private:
+	v8::Persistent<v8::FunctionTemplate> template_;
+
+protected:
+	virtual void onInit(v8::Local<v8::FunctionTemplate>& ctor) { }
+
+public:
+	JsClass(v8::Isolate* isolate, const char* className, v8::FunctionCallback callback, v8::Local<v8::Value> data = v8::Local<v8::Value>()) : template_()
+	{
+		v8::Local<v8::FunctionTemplate> ctor = v8::FunctionTemplate::New(isolate, callback, data);
+		ctor->SetClassName(createString(isolate, className));
+		template_.Reset(isolate, ctor);
+	}
+
+	template<typename T>
+	JsClass(v8::Isolate* isolate, const char* className, v8::FunctionCallback callback, T* data) : JsClass(isolate, className, callback, v8::External::New(isolate, data)) { }
+
+	void init(v8::Isolate* isolate)
+	{
+		v8::Local<v8::FunctionTemplate> ctor = template_.Get(isolate);
+		onInit(ctor);
+	}
+
+	v8::Local<v8::Function> getClass(v8::Isolate* isolate)
+	{
+		return template_.Get(isolate)->GetFunction(isolate->GetCurrentContext()).ToLocalChecked();
+	}
+
+	v8::Local<v8::Value> create(v8::Isolate* isolate)
+	{
+		auto val = template_.Get(isolate)->GetFunction(isolate->GetCurrentContext()).ToLocalChecked()->CallAsConstructor(isolate->GetCurrentContext(), 0, nullptr).ToLocalChecked();
+		return val;
 	}
 };
