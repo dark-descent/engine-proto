@@ -130,10 +130,13 @@ void SceneManager::onInitialize(Config& config, ObjectBuilder& exports)
 		addScene(name, scenePath);
 	}
 
-	exports.setFunction<SceneManager>("addScene", SceneManager::addSceneCallback, this);
-	exports.setFunction<SceneManager>("addEntity", SceneManager::addEntityCallback, this);
-	exports.setFunction<SceneManager>("loadEditorScene", SceneManager::loadEditorSceneCallback, this);
-	exports.setFunction<SceneManager>("removeScene", SceneManager::removeSceneCallback, this);
+	exports.setObject("SceneManager", [&](ObjectBuilder& builder)
+	{
+		builder.setFunction<SceneManager>("addScene", SceneManager::addSceneCallback, this);
+		builder.setFunction<SceneManager>("addEntity", SceneManager::addEntityCallback, this);
+		builder.setFunction<SceneManager>("loadEditorScene", SceneManager::loadEditorSceneCallback, this);
+		builder.setFunction<SceneManager>("removeScene", SceneManager::removeSceneCallback, this);
+	});
 }
 
 void SceneManager::onTerminate()
@@ -212,7 +215,7 @@ void SceneManager::removeScene(const size_t index)
 
 int64_t SceneManager::getActiveSceneIndex()
 {
-	if(!isLoaded_)
+	if (!isLoaded_)
 		return -1;
 	return this->activeScene_;
 }

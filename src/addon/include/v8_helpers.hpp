@@ -3,16 +3,22 @@
 #include "node.h"
 
 #define V8CallbackArgs const v8::FunctionCallbackInfo<v8::Value>&
+#define V8UnpackArgs(__ARGS__) v8::Isolate* isolate = __ARGS__.GetIsolate(); \
+v8::Local<v8::Context> context = isolate->GetCurrentContext(); \
+const size_t argc = __ARGS__.Length()
 
 template<typename T>
 inline T getExternalData(V8CallbackArgs args) { return static_cast<T>(args.Data().As<v8::External>()->Value()); }
+
+template<typename T>
+inline T getExternalData(v8::Local<v8::Value> val) { return static_cast<T>(val.As<v8::External>()->Value()); }
 
 inline v8::Local<v8::String> createString(v8::Isolate* isolate, const char* str)
 {
 	return v8::String::NewFromUtf8(isolate, str, v8::NewStringType::kNormal).ToLocalChecked();
 }
 
-template<typename T>
+template<typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
 inline v8::Local<v8::Number> createNumber(v8::Isolate* isolate, T num)
 {
 	return v8::Number::New(isolate, static_cast<double>(num));
@@ -121,7 +127,7 @@ public:
 
 	void set(const char* key, bool boolean) { this->obj_->Set(this->ctx_, createString(this->isolate_, key), v8::Boolean::New(this->isolate_, boolean)); }
 
-	template<typename T>
+	template<typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
 	void set(const char* key, T number) { this->obj_->Set(this->ctx_, createString(this->isolate_, key), createNumber(this->isolate_, number)); }
 
 	template<typename FillCallback>
@@ -189,11 +195,8 @@ public:
 		return jsClass;
 	}
 
-private:
-	v8::Persistent<v8::FunctionTemplate> template_;
-
 protected:
-	virtual void onInit(v8::Local<v8::FunctionTemplate>& ctor) { }
+	v8::Persistent<v8::FunctionTemplate> template_;
 
 public:
 	JsClass(v8::Isolate* isolate, const char* className, v8::FunctionCallback callback, v8::Local<v8::Value> data = v8::Local<v8::Value>()) : template_()
@@ -205,12 +208,6 @@ public:
 
 	template<typename T>
 	JsClass(v8::Isolate* isolate, const char* className, v8::FunctionCallback callback, T* data) : JsClass(isolate, className, callback, v8::External::New(isolate, data)) { }
-
-	void init(v8::Isolate* isolate)
-	{
-		v8::Local<v8::FunctionTemplate> ctor = template_.Get(isolate);
-		onInit(ctor);
-	}
 
 	v8::Local<v8::Function> getClass(v8::Isolate* isolate)
 	{

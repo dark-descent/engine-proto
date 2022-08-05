@@ -1,7 +1,5 @@
-import { Addon, AddonEngine } from "./Addon";
+import { AddonEngine, EngineModule } from "./Addon";
 import { Renderer } from "./Renderer";
-import { CoreComponents } from "./components";
-import { Scene } from "./Scene";
 
 export class Engine
 {
@@ -63,7 +61,7 @@ export class Engine
 
 		await conf.renderer.initialize();
 
-		const internalEngine = Addon.module.initialize(conf);
+		const internalEngine = EngineModule.initialize(conf);
 
 		this._instance = new Engine(internalEngine, conf, await this.initWorkers(conf.workerThreads));
 		console.log("Engine initialized!", this._instance);
@@ -82,15 +80,6 @@ export class Engine
 
 	private readonly _workers: ReadonlyArray<Worker>;
 
-	private readonly _activeScene: Scene | null = null;
-
-	public get activeScene(): Scene 
-	{
-		if (this._activeScene == null)
-			throw new Error("No scene is loaded!");
-		return this._activeScene;
-	}
-
 	/**
 	 * @internal
 	 */
@@ -100,13 +89,11 @@ export class Engine
 	{
 		this.api = addonEngine;
 
-		addonEngine.components.forEach((c) =>
+		const expose = global as any;
+
+		Object.keys(addonEngine.objects).forEach(k => 
 		{
-			if (CoreComponents[c.name])
-				CoreComponents[c.name]._internalIndex = c.index;
-			else
-				console.warn(`Could not find CoreComponent "${c.name}"!`);
-			// console.log(c.name, CoreComponents[c.name]?._internalIndex);
+			expose[k] = (addonEngine.objects as any)[k]!;
 		});
 
 		this._config = config;

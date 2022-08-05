@@ -22,14 +22,22 @@ class Engine;
 
 class JsComponent : public JsClass
 {
-protected:
-	static inline Engine& fetchEngineFromInfo(const v8::FunctionCallbackInfo<v8::Value>& info) { return *(static_cast<Engine*>(info.Data().As<v8::External>()->Value())); }
+private:
+	static v8::Persistent<v8::Symbol> internalSymbol_;
 
+	v8::FunctionCallback ctorCallback_;
+
+	static void ctorWrapper(V8CallbackArgs args);
+	static void getIndexCallback(V8CallbackArgs args);
+
+	uint64_t index_;
+
+protected:
 	Engine& engine;
 
 public:
-	JsComponent(Engine& engine, const char* name, v8::FunctionCallback callback);
+	static v8::Local<v8::Symbol> getInternalSymbol(v8::Isolate* isolate);
+	JsComponent(Engine& engine, const char* name, uint64_t index, v8::FunctionCallback callback);
 };
 
-#define JS_COMPONENT_CTOR(__NAME__, __JS_CTOR__) __NAME__(Engine& engine, const char* name) : JsComponent(engine, name, __JS_CTOR__)
-#define FETCH_ENGINE()
+#define JS_COMPONENT_CTOR(__NAME__, __JS_CTOR__) __NAME__(Engine& engine, const char* name, uint64_t index) : JsComponent(engine, name, index, __JS_CTOR__)

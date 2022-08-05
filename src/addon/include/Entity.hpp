@@ -40,10 +40,10 @@ class Engine;
 
 class JsEntity : public JsClass
 {
-	static void constructCallback(const v8::FunctionCallbackInfo<v8::Value>& info);
-
-protected:
-	virtual void onInit(v8::Local<v8::FunctionTemplate>& obj) override;
+	static void constructCallback(V8CallbackArgs args);
+	static void addComponent(V8CallbackArgs args);
+	static void getComponent(V8CallbackArgs args);
+	static void removeComponent(V8CallbackArgs args);
 
 public:
 	JsEntity(Engine& engine);

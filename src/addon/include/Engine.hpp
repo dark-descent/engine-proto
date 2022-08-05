@@ -58,7 +58,7 @@ private:
 	Engine(Engine&&) = delete;
 
 	template<typename Component, class JsComponentType>
-	size_t registerAndExposeComponent(ArrayBuilder& exports, const char* name)
+	size_t registerAndExposeComponent(ObjectBuilder& exports, const char* name)
 	{
 		const size_t index = components_.size();
 		const uint64_t bitMask = 1ULL << index;
@@ -66,8 +66,7 @@ private:
 		components_.emplace_back(index, bitMask, sizeof(Component));
 		componentTypeMap_.emplace(std::make_pair(Hasher::hash(typeid(Component).name()), index));
 
-		auto jsType = new JsComponentType(*this, name);
-		jsType->init(isolate_);
+		auto jsType = new JsComponentType(*this, name, index);
 		jsComponents_.emplace_back(jsType);
 
 #ifdef _DEBUG
@@ -94,13 +93,7 @@ private:
 			componentNames_.push_back(std::make_pair(hash, componentName));
 		}
 #endif
-
-		exports.pushObject([&](ObjectBuilder& obj)
-		{
-			obj.set("name", name);
-			obj.set("index", index);
-			obj.setVal("type", jsType->getClass(isolate_));
-		});
+		exports.set(name, jsType->getClass(isolate_));
 
 		return index;
 	}

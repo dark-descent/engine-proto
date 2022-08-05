@@ -21,6 +21,7 @@ void Engine::initialize(V8CallbackArgs args)
 
 	if (engine_ != nullptr)
 	{
+		engine_->logger.warn("Exception: ", "Engine is already initialized!");
 		isolate->ThrowException(createString(isolate, "Engine is already initialized!"));
 	}
 	else
@@ -50,7 +51,8 @@ void Engine::initialize(V8CallbackArgs args)
 		}
 		catch (std::runtime_error e)
 		{
-			Logger::get("Test").error("Exception: ", e.what());
+			auto& logger = engine_ != nullptr ? engine_->logger : Logger::get("internal");
+			logger.error("Exception: ", e.what());
 			isolate->ThrowException(createString(isolate, e.what()));
 		}
 	}
@@ -64,23 +66,12 @@ void Engine::initializeWorker(V8CallbackArgs args)
 
 	if (engine_ == nullptr)
 	{
+		Logger::get("internal").error("Exception: Engine is not initialized yet!");
 		isolate->ThrowException(createString(isolate, "Engine is not initialized yet!"));
 	}
 	else
 	{
-		try
-		{
-			ObjectBuilder exports(isolate);
-			// node::AddEnvironmentCleanupHook(isolate, Engine::destroy, isolate);
-
-			// engine_ = new Engine(config, exports);
-			args.GetReturnValue().SetUndefined();
-		}
-		catch (std::runtime_error e)
-		{
-			// Logger::get("Test").error("Exception: ", e.what());
-			// isolate->ThrowException(createString(isolate, e.what()));
-		}
+		
 	}
 }
 
@@ -116,29 +107,28 @@ Engine::Engine(v8::Isolate* isolate, Config& config, ObjectBuilder& exports) :
 	logger(Logger::get("internal")),
 	game()
 {
-	jsEntity.init(isolate);
-
-	exports.setArray("components", [&](ArrayBuilder& builder)
+	exports.setObject("objects", [&](ObjectBuilder& builder)
 	{
+		// expose the Entity class
+		builder.setVal("Entity", jsEntity.getClass(isolate));
+
+		// register and expose all the Components
 		registerAndExposeComponent<Transform, JsTransform>(builder, "Transform");
 		registerAndExposeComponent<RigidBody, JsRigidBody>(builder, "RigidBody");
 		registerAndExposeComponent<BoxCollider, JsBoxCollider>(builder, "BoxCollider");
 		registerAndExposeComponent<CircleCollider, JsCircleCollider>(builder, "CircleCollider");
+
+		const auto initSubSystem = [&](SubSystem& subSystem)
+		{
+			subSystem.initialize(config, builder);
+			subSystems_.push_back(&subSystem);
+		};
+
+		// initialize all the sub systems
+		initSubSystem(assetManager);
+		initSubSystem(sceneManager);
+		initSubSystem(renderer);
 	});
-
-	exports.setVal("Entity", jsEntity.getClass(isolate));
-
-	// jsComponents_.at(1)->create(isolate_)
-
-	const auto initSubSystem = [&](SubSystem& subSystem)
-	{
-		subSystem.initialize(config, exports);
-		subSystems_.push_back(&subSystem);
-	};
-
-	initSubSystem(assetManager);
-	initSubSystem(sceneManager);
-	initSubSystem(renderer);
 }
 
 Engine::~Engine()
