@@ -1,10 +1,10 @@
-const { watch, readdirSync, writeFileSync, copyFileSync } = require("fs");
-const { resolve, addonSrc, src } = require("./paths");
+const { watch, readdirSync, writeFileSync, readFile, readFileSync, existsSync, statSync } = require("fs");
+const { resolve, addonSrc } = require("./paths");
 const p = require("path");
-const { spawn, spawnSync } = require("child_process");
+const { spawn } = require("child_process");
 const os = require("os");
-
-const { existsSync } = require("fs");
+const crypto = require("crypto");
+const find = require("find-process");
 
 const isNum = (val) => val.length > 0 && !Number.isNaN(Number(val));
 
@@ -23,8 +23,17 @@ const getTarget = () =>
 		if (existsSync(pkgPath))
 			return require(pkgPath).devDependencies.electron.replace("^", "");
 	}
+	else
+	{
+		const pkgPath = p.resolve(process.cwd(), "package.json");
+
+		if (existsSync(pkgPath))
+			return require(pkgPath).devDependencies.electron.replace("^", "");
+	}
 	return null;
 }
+
+const addonBuildPath = resolve("build", "Debug", "addon.node");
 
 const target = getTarget();
 const targetArg = target ? [`--target=${target}`] : [];
@@ -60,33 +69,123 @@ const readRecursive = (path) =>
 
 let nodeGypProc = null;
 
-const runNodeGyp = () =>
+const kill = async () =>
 {
-	if (nodeGypProc)
+	if(nodeGypProc)
+	{
+		console.log("Killing node-gyp instance...");
 		nodeGypProc.kill();
+		const list = await find("name", "node-gyp");
+		list.forEach((item) => 
+		{
+			process.kill(item.pid);
+		});
+	}
+}
 
+const runNodeGyp = async (callback = () => {}) =>
+{
+	await kill();
+
+	const files = readRecursive(addonSrc);
 	const json = JSON.stringify({
 		"targets": [
 			{
 				"target_name": "addon",
-				"win_delay_load_hook": "true",
-				"sources": readRecursive(addonSrc)
+				"msvs_version": "2019",
+				"cflags_cc": ["-std=c++latest", "-fexceptions"],
+				"win_delay_load_hook": os.platform() === "win32" ? "true" : "false",
+				"sources": files.filter(f => f.endsWith("cpp")),
+				"include_dirs": [
+					resolve("src", "addon", "include"),
+				],
+				"conditions": [
+					['OS=="mac"', {
+						"xcode_settings": {
+							"GCC_ENABLE_CPP_EXCEPTIONS": "YES",
+							"CLANG_CXX_LIBRARY": "libc++",
+							"CLANG_CXX_LANGUAGE_STANDARD": "c++latest",
+							"MACOSX_DEPLOYMENT_TARGET": "10.14"
+						}
+					}],
+					['OS=="win"', {
+						"msvs_settings": {
+							"VCCLCompilerTool": {
+								"AdditionalOptions": ["-std:c++latest", "/EHsc"],
+								"Optimization": 2
+							},
+						},
+					}]
+				]
 			}
 		]
 	}, null, 4);
 
 	writeFileSync(resolve("binding.gyp"), json, "utf-8");
 
-	nodeGypProc = spawn(nodeGyp, ["rebuild", ...nodeGypArgs], { stdio: "inherit" });
-	nodeGypProc.on("close", () =>
+	nodeGypProc = spawn(nodeGyp, ["rebuild", ...nodeGypArgs], { stdio: "inherit", cwd: resolve("") });
+	nodeGypProc.on("close", (code) => { callback(code !== 0, addonBuildPath); });
+	nodeGypProc.killProc = kill;
+	return nodeGypProc;
+}
+
+const getFileHashAsync = (path) => new Promise((res) => 
+{
+	readFile(path, "utf-8", (err, data) => 
 	{
-		nodeGypProc = null;
+		res(crypto.createHash("md5").update(data).digest("base64"));
+	});
+});
+
+const getFileHash = (path) => crypto.createHash("md5").update(readFileSync(path, "utf-8")).digest("base64");
+
+const watchAddon = async (callback = () => {}, onChange = () => {}) =>
+{
+	runNodeGyp(callback);
+
+	const srcPath = resolve("src", "addon", "src");
+	const includePath = resolve("src", "addon", "include");
+	const files = readRecursive(addonSrc).filter(file => file.startsWith(srcPath) || file.startsWith(includePath));
+	filePromises = files.map(file => getFileHashAsync(file));
+	const hashes = await Promise.all(filePromises);
+
+	const fileHashes = {};
+	hashes.forEach((hash, i) => fileHashes[files[i]] = hash);
+
+	let onChangeTimeout = null;
+
+	watch(addonSrc, { recursive: true }, (e, file) => 
+	{
+		try
+		{
+			const path = p.resolve(addonSrc, file);
+
+			if (statSync(path).isDirectory())
+				return;
+
+			if (onChangeTimeout)
+				clearTimeout(onChangeTimeout);
+			onChangeTimeout = setTimeout(async () => 
+			{
+				const hash = getFileHash(path);
+				const oldHash = fileHashes[path];
+				if (!oldHash || (oldHash !== hash))
+				{
+					fileHashes[path] = hash;
+					await onChange();
+					runNodeGyp(callback);
+				}
+			}, 150);
+		}
+		catch (e)
+		{
+			console.warn(e);
+		}
 	});
 }
 
-console.log(`Configuring...`);
-spawnSync(nodeGyp, ["configure", ...nodeGypArgs], { stdio: "inherit" });
 
-runNodeGyp();
-
-watch(addonSrc, { recursive: true }, runNodeGyp);
+if(require.main === module)
+	watchAddon();
+else
+	module.exports = watchAddon;
